@@ -20,7 +20,7 @@ function getTheme(theme?: Theme) {
       : {
           mode: "dark",
           primary: {
-            main: "#211D1B",
+            main: "#181919",
           },
           secondary: {
             main: "#ee99ff",
