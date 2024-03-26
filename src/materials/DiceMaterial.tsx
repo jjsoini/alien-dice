@@ -1,16 +1,13 @@
 import { DiceStyle } from "../types/DiceStyle";
-import { TWD1Material } from "./twd1/TWD1Material";
-import { TWD2Material } from "./twd2/TWD2Material";
-import { TWD3Material } from "./twd3/TWD3Material";
+import { BaseDieMaterial } from "./basedie/BaseDieMaterial";
+import { StressDieMaterial } from "./stressdie/StressDieMaterial";
 
 export function DiceMaterial({ diceStyle }: { diceStyle: DiceStyle }) {
   switch (diceStyle) {
-    case "TWD1":
-      return <TWD1Material />;
-    case "TWD2":
-      return <TWD2Material />;
-    case "TWD3":
-      return <TWD3Material />;
+    case "BASE":
+      return <BaseDieMaterial />;
+    case "STRESS":
+      return <StressDieMaterial />;
     default:
       throw Error(`Dice style ${diceStyle} error: not implemented`);
   }

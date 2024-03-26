@@ -52,9 +52,7 @@ export function getCombinedDiceValue(
     if (isDie(dieOrDice)) {
       const value = values[dieOrDice.id];
       if (value !== undefined) {
-        if (dieOrDice.style === "TWD3" && dieOrDice.type === "D6") {
-          currentValues.push(0);
-        } else if (value >= 6){ 
+        if (value >= 6){ 
           currentValues.push(1);
         } else {
           currentValues.push(0);

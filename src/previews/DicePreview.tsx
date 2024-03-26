@@ -3,14 +3,12 @@ import { styled } from "@mui/material/styles";
 import { DiceStyle } from "../types/DiceStyle";
 import { DiceType } from "../types/DiceType";
 
-import * as twd1Previews from "./twd1";
-import * as twd2Previews from "./twd2";
-import * as twd3Previews from "./twd3";
+import * as baseDiePreviews from "./basedie";
+import * as stressDiePreviews from "./stressdie";
 
 const previews: Record<DiceStyle, Record<DiceType, string>> = {
-  TWD1: twd1Previews,
-  TWD2: twd2Previews,
-  TWD3: twd3Previews,
+  BASE: baseDiePreviews,
+  STRESS: stressDiePreviews,
 };
 
 interface PreviewImageProps {

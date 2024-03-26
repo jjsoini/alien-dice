@@ -2,16 +2,13 @@ import { DiceSet } from "../types/DiceSet";
 import { DiceStyle } from "../types/DiceStyle";
 import { Die } from "../types/Die";
 
-import * as twd1Previews from "../previews/twd1";
-import * as twd2Previews from "../previews/twd2";
-import * as twd3Previews from "../previews/twd3";
+import * as basePreviews from "../previews/basedie";
+import * as stressPreviews from "../previews/stressdie";
 
-import allPreview from "../previews/all.png";
 
 const standardPreviews: Record<DiceStyle, string> = {
-  TWD1: twd1Previews.D6,
-  TWD2: twd2Previews.D100,
-  TWD3: twd3Previews.D20,
+  BASE: basePreviews.D6,
+  STRESS: stressPreviews.D100,
 };
 
 function createStandardSet(style: DiceStyle): DiceSet {
@@ -21,8 +18,7 @@ function createStandardSet(style: DiceStyle): DiceSet {
     name: `${style.toLowerCase()} dice`,
     dice: [
       { id: `${id}_D6`, type: "D6", style},
-      { id: `${id}_D6ammo`, type: "D6", style: "TWD2" },
-      /*{ id: `${id}_D6location`, type: "D6", style: "TWD3" },*/
+      { id: `${id}_D6ammo`, type: "D6", style: "STRESS" },
     ],
     previewImage: standardPreviews[style],
   };
@@ -34,8 +30,8 @@ function createSecondarySet(style: DiceStyle): DiceSet {
     id,
     name: `${style.toLowerCase()} dice`,
     dice: [
-      { id: `${id}_D4`, type: "D4", style: "TWD1" },
-      { id: `${id}_D20`, type: "D20", style: "TWD1" },
+      { id: `${id}_D4`, type: "D4", style: "BASE" },
+      { id: `${id}_D20`, type: "D20", style: "BASE" },
       { id: `${id}_D100`, type: "D100", style },
     ],
     previewImage: standardPreviews[style],
@@ -43,17 +39,8 @@ function createSecondarySet(style: DiceStyle): DiceSet {
 }
 
 const standardSets = [
-  createStandardSet("TWD1"), createSecondarySet("TWD2"),
+  createStandardSet("BASE"), createSecondarySet("STRESS"),
 ];
 
-const allSet: DiceSet = {
-  id: "all",
-  name: "all",
-  dice: standardSets.reduce(
-    (prev, curr) => [...prev, ...curr.dice],
-    [] as Die[]
-  ),
-  previewImage: allPreview,
-};
 
-export const diceSets: DiceSet[] = [...standardSets, allSet];
+export const diceSets: DiceSet[] = [...standardSets];

@@ -1,19 +1,19 @@
 ---
-title: Dice for Free League's The Walking Dead Universe RPG
-description: Dice for Free League's The Walking Dead Universe RPG (unofficial)
+title: Dice for Free League's Alien RPG
+description: Dice for Free League's Alien RPG (unofficial)
 author: Jussi Soini
-image: https://raw.githubusercontent.com/jjsoini/twd-dice/main/docs/header.jpg
-icon: https://pulpscape-twd-dice.onrender.com/logo.png
+image: https://raw.githubusercontent.com/jjsoini/alien-dice/main/docs/header.jpg
+icon: https://pulpscape-alien-dice.onrender.com/logo.png
 tags:
   - pulpscape
-  - the-walking-dead-universe-rpg
+  - alien-rpg
   - dice
-manifest: https://pulpscape-twd-dice.onrender.com/manifest.json
+manifest: https://pulpscape-alien-dice.onrender.com/manifest.json
 ---
 
 # Dice
 
-Beautiful 3D dice extension for The Walking Dead Universe RPG
+Beautiful 3D dice extension for Alien RPG
 
 **Support**
 

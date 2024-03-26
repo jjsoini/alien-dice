@@ -27,7 +27,7 @@ function getTheme(theme?: Theme) {
           },
           background: {
             paper: "#222639",
-            default: "#1D1C1E",
+            default: "#171919",
           },
         },
     shape: {

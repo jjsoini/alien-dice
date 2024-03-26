@@ -18,13 +18,13 @@ export function getDiceToPush(
       if (isDie(dieOrDice)) {
         const value = values[dieOrDice.id];
         if (value !== undefined) {
-            if (dieOrDice.style === "TWD2" && dieOrDice.type === "D6" && value === 1) {
+            if (dieOrDice.style === "STRESS" && dieOrDice.type === "D6" && value === 1) {
               return undefined;
             }
-            else if (dieOrDice.style === "TWD1" && value < 6 && dieOrDice.type === "D6") {
+            else if (dieOrDice.style === "BASE" && value < 6 && dieOrDice.type === "D6") {
               diceToPush.push(dieOrDice.id);
             }
-            else if (dieOrDice.style === "TWD2" && dieOrDice.type === "D6" && value < 6) {
+            else if (dieOrDice.style === "STRESS" && dieOrDice.type === "D6" && value < 6) {
                 diceToPush.push(dieOrDice.id);
             }
         }

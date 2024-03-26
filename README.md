@@ -1,6 +1,6 @@
-# The Walking Dead Universe RPG Dice
+# Alien RPG Dice for Owlbear Rodeo
 
-Beautiful unofficial Owlbear Rodeo dice extension for Free League's The Walking Dead Universe RPG, based on the [Owlbear Rodeo Dice Extension](https://github.com/owlbear-rodeo/dice).
+Beautiful unofficial Owlbear Rodeo dice extension for Free League's Alien RPG, based on the [Owlbear Rodeo Dice Extension](https://github.com/owlbear-rodeo/dice).
 
 ![Example](/docs/header.jpg)
 

@@ -1,12 +1,12 @@
 {
-  "name": "TWDU Dice",
-  "version": "1.1.0",
-  "manifest_version": 1.2,
+  "name": "Alien Dice",
+  "version": "0.0.1",
+  "manifest_version": 1.0,
   "author": "Jussi Soini aka Pulpscape",
   "icon": "/logo.png",
-  "description": "Dice for The Walking Dead Universe RPG (unofficial)",
+  "description": "Dice for Alien RPG (unofficial)",
   "action": {
-    "title": "TWDU Dice",
+    "title": "Alien Dice",
     "icon": "/icon.svg",
     "popover": "/",
     "height": 700,

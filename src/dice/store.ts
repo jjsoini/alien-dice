@@ -210,7 +210,7 @@ function pushDraft(
 ) {
 
     const newId = generateDiceId();
-    diceRoll.dice.push({id:newId, style:"TWD2", type:"D6"});
+    diceRoll.dice.push({id:newId, style:"STRESS", type:"D6"});
     rollValues[newId] = null;
     rollTransforms[newId] = null;
     rollThrows[newId] = getRandomDiceThrow(2);
@@ -254,7 +254,7 @@ function addDieDraft(
 ) {
 
     const newId = generateDiceId();
-    diceRoll.dice.push({id:newId, style:"TWD1", type:"D6"});
+    diceRoll.dice.push({id:newId, style:"BASE", type:"D6"});
     rollValues[newId] = null;
     rollTransforms[newId] = null;
     rollThrows[newId] = getRandomDiceThrow(2);
@@ -270,7 +270,7 @@ function addStressDraft(
 ) {
 
     const newId = generateDiceId();
-    diceRoll.dice.push({id:newId, style:"TWD2", type:"D6"});
+    diceRoll.dice.push({id:newId, style:"STRESS", type:"D6"});
     rollValues[newId] = null;
     rollTransforms[newId] = null;
     rollThrows[newId] = getRandomDiceThrow(2);
