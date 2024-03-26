@@ -3,12 +3,12 @@ title: Dice for Free League's Alien RPG
 description: Dice for Free League's Alien RPG (unofficial)
 author: Jussi Soini
 image: https://raw.githubusercontent.com/jjsoini/alien-dice/main/docs/header.jpg
-icon: https://pulpscape-alien-dice.onrender.com/logo.png
+icon: https://alien-dice.onrender.com/logo.png
 tags:
   - pulpscape
   - alien-rpg
   - dice
-manifest: https://pulpscape-alien-dice.onrender.com/manifest.json
+manifest: https://alien-dice.onrender.com/manifest.json
 ---
 
 # Dice
