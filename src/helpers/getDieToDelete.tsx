@@ -14,9 +14,9 @@ export function getDieToDelete(
   ): string | undefined {
 
     let dice_arr: string[] = [];
-    let style = "TWD1";
+    let style = "BASE";
     if (isStress) {
-        style = "TWD2";
+        style = "STRESS";
     }
 
     for (const dieOrDice of dice.dice) {
