@@ -10,7 +10,7 @@ import { useTheme } from "@mui/material/styles";
 import Paper from "@mui/material/Paper";
 import ButtonBase from "@mui/material/ButtonBase";
 
-import environment from "../environment.hdr";
+import environment from "../alienroom.jpg";
 import { usePlayerDice } from "./usePlayerDice";
 import { PlayerDiceRoll } from "./PlayerDiceRoll";
 import { AudioListenerProvider } from "../audio/AudioListenerProvider";
