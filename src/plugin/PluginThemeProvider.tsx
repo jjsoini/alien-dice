@@ -23,10 +23,10 @@ function getTheme(theme?: Theme) {
             main: "#181919",
           },
           secondary: {
-            main: "#ee99ff",
+            main: "#FFE500",
           },
           background: {
-            paper: "#222639",
+            paper: "#171919",
             default: "#171919",
           },
         },

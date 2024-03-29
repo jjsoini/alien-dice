@@ -48,7 +48,7 @@ export function InteractiveTray() {
               blur={1}
               opacity={0.75}
               far={1}
-              color="#1A2018"
+              color="#181919"
             />
             <Tray />
             <PreviewDiceRoll />
