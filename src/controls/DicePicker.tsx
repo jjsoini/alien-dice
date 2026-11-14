@@ -1,14 +1,22 @@
-import { Theme } from "@mui/material/styles";
-import { ACCENT, getBadgeColors } from "../helpers/accent";
+import { alpha, Theme } from "@mui/material/styles";
+import {
+  getAccentForegroundColor,
+  getAccentLineColor,
+  ACCENT,
+  getBadgeColors,
+  getPanelIconColor,
+  TRAY_PANIC_COLOR,
+  LINE_WIDTH,
+} from "../helpers/accent";
 import { Fragment, useMemo } from "react";
 import Badge from "@mui/material/Badge";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import ButtonBase from "@mui/material/ButtonBase";
-import { SidebarCollapse } from "./SidebarCollapse";
 
-import { DicePreview } from "../previews/DicePreview";
+import { DieButtonImage } from "../icons/DieButtonImage";
+import { PANEL_DARK } from "../plugin/PluginThemeProvider";
 
 import { useDiceControlsStore } from "./store";
 import { useDiceRollStore } from "../dice/store";
@@ -24,7 +32,6 @@ import {
 } from "../cards/cardDeck";
 import { isCardRoll } from "../types/Dice";
 import { ShuffleButton } from "./DrawnCards";
-import { PushButton } from "./PushButton";
 import { Die } from "../types/Die";
 import { DiceRoll } from "../types/DiceRoll";
 import { getDieFromDice } from "../helpers/getDieFromDice";
@@ -34,12 +41,14 @@ export function DicePicker({
   onAddToRoll,
 }: {
   /**
-   * - sidebar: a column, buttons that can't be used are hidden
-   * - panel: a grid of large labelled buttons (phones), buttons that can't be
-   *   used are disabled so the grid doesn't move
+   * - sidebar: a column of buttons
+   * - panel: a 2×2 grid of large buttons (phones)
+   *
+   * There are only four buttons (base and stress die, card, shuffle), so
+   * buttons that can't be used stay in place, disabled.
    */
   variant?: "sidebar" | "panel";
-  /** Called after a die was rolled into the roll in the tray, or a push */
+  /** Called after a die was rolled into the roll in the tray */
   onAddToRoll?: () => void;
 }) {
   const isPanel = variant === "panel";
@@ -65,7 +74,6 @@ export function DicePicker({
   // The card limits come from the deck, so update when it changes
   const cantDrawReason = useCardDeckStore(getCantDrawReason);
   useCardDeckStore(getMaxCards);
-  const isGM = useCardDeckStore((state) => state.role === "GM");
 
   // With dice in the tray a button rolls one more die into it. The pool is
   // only built while the tray is clear.
@@ -80,45 +88,65 @@ export function DicePicker({
     }
   }
 
-  // Buttons that can't be used are hidden, but a button with picked dice
-  // stays (dimmed) so its count still shows
   return (
     <Box
       component="div"
       sx={
         isPanel
           ? {
+              // Four squares with green lines between them. The lines are
+              // borders on the squares (not gaps showing a background, which
+              // can show an extra sliver), so every line is LINE_WIDTH.
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 1,
+              gridTemplateColumns: "repeat(2, 1fr)",
+              // Fills its wrapper in the panel (see DicePanel), which is a
+              // square that shrinks when the panel is short
+              gridTemplateRows: "repeat(2, 1fr)",
+              height: "100%",
+              boxSizing: "border-box",
+              // A faint green square grid behind the buttons
+              backgroundImage: (theme: Theme) => {
+                const line = getGridLineColor(theme);
+                return `linear-gradient(${line} 1px, transparent 1px), linear-gradient(90deg, ${line} 1px, transparent 1px)`;
+              },
+              backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
+              backgroundPosition: "center",
+              // The top border is also the line under the panel's button bar
+              borderTop: `${LINE_WIDTH}px solid`,
+              borderBottom: `${LINE_WIDTH}px solid`,
+              borderColor: getAccentLineColor,
+              // Squares stay within their column, borders included
+              "& > *": {
+                borderColor: getAccentLineColor,
+                minWidth: 0,
+                boxSizing: "border-box",
+              },
+              // Left column: the line down the middle
+              "& > :nth-of-type(odd)": {
+                borderRight: `${LINE_WIDTH}px solid`,
+                borderRightColor: getAccentLineColor,
+              },
+              // Top row: the line across the middle
+              "& > :nth-of-type(-n + 2)": {
+                borderBottom: `${LINE_WIDTH}px solid`,
+                borderBottomColor: getAccentLineColor,
+              },
             }
           : {
-              my: -0.5,
+              // The same gap as between the sidebar's other buttons
+              gap: 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
             }
       }
     >
-      {/* Push the roll in the tray, before the dice like Shuffle */}
-      <PushButton variant={variant} onPush={onAddToRoll} />
       {Object.entries(counts).map(([id, count]) => {
         const die = diceById[id];
         if (!die) {
           return null;
         }
         const isCard = die.type === "CARD";
-        // The GM only sees Shuffle once they can't draw,
-        // players see the disabled card button
-        if (isCard && cantDrawReason && isGM) {
-          return <ShuffleButton key={id} variant={variant} />;
-        }
-        const hidden = isCard
-          ? Boolean(cantDrawReason) || Boolean(roll)
-          : count === 0 &&
-            (roll
-              ? !canAddDieToRoll(die, roll)
-              : !canAddDie(die, counts, diceById));
         const full = roll
           ? !canAddDieToRoll(die, roll)
           : !canAddDie(die, counts, diceById);
@@ -140,7 +168,7 @@ export function DicePicker({
             onClick={() => handleClick(id)}
           />
         ) : (
-          <SidebarCollapse key={id} in={!hidden}>
+          <Box component="div" key={id}>
             <Tooltip title={reason || ""} placement="right" disableInteractive>
               <span>
                 <Badge
@@ -155,15 +183,15 @@ export function DicePicker({
                 >
                   <IconButton
                     onClick={() => handleClick(id)}
-                    sx={{ p: 0, opacity: full ? 0.4 : 1 }}
-                    disabled={full}
+                    sx={{ p: 0, opacity: disabled ? 0.4 : 1 }}
+                    disabled={disabled}
                   >
-                    <DicePreview diceStyle={die.style} diceType={die.type} />
+                    <DieButtonImage die={die} />
                   </IconButton>
                 </Badge>
               </span>
             </Tooltip>
-          </SidebarCollapse>
+          </Box>
         );
         return isCard ? (
           <Fragment key={id}>
@@ -197,12 +225,23 @@ function PanelButton({
     <Tooltip title={reason || ""} placement="top" disableInteractive>
       <Badge
         badgeContent={count}
-        overlap="circular"
         sx={{
           display: "flex",
+          // The count inside the square's top right corner
           ".MuiBadge-badge": {
             ...getBadgeColors(die.style),
+            top: 12,
+            right: 12,
+            transform: "none",
+            // The yellow stress badge on the picked stress die's yellow
+            // square (light mode) gets a black outline
+            boxShadow: (theme: Theme) =>
+              die.style === "STRESS" && theme.palette.mode === "light"
+                ? // Inside the badge, so it keeps its size
+                  `inset 0 0 0 ${LINE_WIDTH}px ${PANEL_DARK}`
+                : "none",
           },
+          ".MuiBadge-invisible": { transform: "scale(0)" },
         }}
       >
         <ButtonBase
@@ -210,25 +249,43 @@ function PanelButton({
           disabled={disabled}
           aria-label={`${die.style} ${die.type}`}
           sx={{
+            // The whole grid cell: square, or flatter on short screens
             width: "100%",
-            aspectRatio: "1",
+            height: "100%",
             p: 0,
-            borderRadius: "50%",
-            // Picked dice get a thin accent ring (inset, so nothing moves)
-            boxShadow: (theme: Theme) =>
-              count > 0
-                ? `inset 0 0 0 1px ${ACCENT}`
-                : "none",
-            transition: "box-shadow 150ms",
+            borderRadius: 0,
+            // Picked dice get a white icon in dark mode (the stress die a
+            // yellow one) and a black one in light mode
+            color: (theme: Theme) =>
+              count === 0
+                ? getPanelIconColor(theme)
+                : theme.palette.mode === "light"
+                ? PANEL_DARK
+                : die.style === "STRESS"
+                ? TRAY_PANIC_COLOR
+                : "#FFFFFF",
+            // See-through, so the panel's background shows in the squares
+            // Picked dice get a green tint, a picked stress die in light
+            // mode a yellow square
+            backgroundImage: (theme: Theme) => {
+              if (count === 0) {
+                return "none";
+              }
+              const fill =
+                die.style === "STRESS" && theme.palette.mode === "light"
+                  ? alpha(TRAY_PANIC_COLOR, 1.0)
+                  : alpha(getAccentForegroundColor(theme), 0.16);
+              return `linear-gradient(${fill}, ${fill})`;
+            },
             // Picked dice at their limit stay easy to see, as the pool's
             // dice can't be seen behind the panel
-            img: {
+            "img, .die-button-image": {
               opacity: disabled ? (count > 0 ? 0.75 : 0.4) : 1,
               transition: "opacity 150ms",
             },
           }}
         >
-          <DicePreview diceStyle={die.style} diceType={die.type} size="fill" />
+          <DieButtonImage die={die} variant="panel" />
         </ButtonBase>
       </Badge>
     </Tooltip>
@@ -249,4 +306,17 @@ function getRollCounts(roll: DiceRoll, diceById: Record<string, Die>) {
     ).length;
   }
   return counts;
+}
+
+/** Background grid in the phone panel's dice grid */
+const GRID_SIZE = 16;
+
+/**
+ * The background grid's lines: the accent, faint. Dark mode uses the bright
+ * green, as the faint deep green wouldn't show on the near-black panel.
+ */
+function getGridLineColor(theme: Theme) {
+  return theme.palette.mode === "light"
+    ? alpha(ACCENT, 0.1)
+    : alpha(getAccentForegroundColor(theme), 0.08);
 }

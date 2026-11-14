@@ -2,6 +2,8 @@ import SimpleBar from "simplebar-react";
 import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
 
+import { getAccentForegroundColor } from "../helpers/accent";
+
 // import { DiceSetPicker } from "./DiceSetPicker";
 import { DicePicker } from "./DicePicker";
 import { DiceHistory } from "./DiceHistory";
@@ -23,7 +25,18 @@ export function Sidebar() {
         overflowY: "auto",
       }}
     >
-      <Stack p={1} gap={1} alignItems="center">
+      <Stack
+        p={1}
+        gap={1}
+        alignItems="center"
+        sx={{
+          // Buttons turn their icon green on hover instead of a background
+          "& .MuiIconButton-root:hover": {
+            bgcolor: "transparent",
+            color: getAccentForegroundColor,
+          },
+        }}
+      >
         {/* The set switcher is hidden, there's only one set */}
         {/* <DiceSetPicker /> */}
         <DicePicker />

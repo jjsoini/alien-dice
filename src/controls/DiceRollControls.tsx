@@ -14,7 +14,7 @@ import CloseIcon from "@mui/icons-material/CloseRounded";
 import RollIcon from "@mui/icons-material/ArrowForwardRounded";
 
 import { RerollDiceIcon } from "../icons/RerollDiceIcon";
-import { SHOW_REROLL } from "./PushButton";
+import { PushButton, SHOW_REROLL } from "./PushButton";
 
 import { GradientOverlay } from "./GradientOverlay";
 import { useDiceRollStore } from "../dice/store";
@@ -287,9 +287,10 @@ function FinishedRollControls() {
           </Tooltip>
         </Stack>
       </Box>
-      {/* Reroll bottom left when shown. Push is with the dice buttons, and
-          cards are drawn once per shuffle: no reroll. */}
-      {SHOW_REROLL && !isCards && (
+      {/* Push bottom left, then Reroll when shown. The bottom right is the
+          zoomed tray's reset button. Cards are drawn once per shuffle:
+          neither. */}
+      {!isCards && (
         <Stack
           direction="row"
           justifyContent="space-between"
@@ -304,14 +305,19 @@ function FinishedRollControls() {
           }}
           component="div"
         >
-          <Tooltip title="Reroll" sx={{ pointerEvents: "all" }}>
-            <IconButton
-              onClick={() => reroll()}
-              sx={{ pointerEvents: "all", color: "white" }}
-            >
-              <RerollDiceIcon />
-            </IconButton>
-          </Tooltip>
+          <Stack direction="row" gap={1}>
+            <PushButton overTray />
+            {SHOW_REROLL && (
+              <Tooltip title="Reroll" sx={{ pointerEvents: "all" }}>
+                <IconButton
+                  onClick={() => reroll()}
+                  sx={{ pointerEvents: "all", color: "white" }}
+                >
+                  <RerollDiceIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
         </Stack>
       )}
       <Stack

@@ -6,11 +6,11 @@ import Fade from "@mui/material/Fade";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
-import { alpha, darken, useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import {
-  getAccentColor,
   getAccentForegroundColor,
-  getAccentTextColor,
+  getAccentLineColor,
+  LINE_WIDTH,
 } from "../helpers/accent";
 
 import DiceIcon from "@mui/icons-material/CasinoRounded";
@@ -29,7 +29,7 @@ import { PartyTrays } from "../plugin/PartyTrays";
 import { DiceResults } from "./DiceResults";
 import { isCardRoll } from "../types/Dice";
 import { RerollDiceIcon } from "../icons/RerollDiceIcon";
-import { SHOW_REROLL } from "./PushButton";
+import { PushButton, SHOW_REROLL } from "./PushButton";
 import {
   CORNER_BUTTON,
   CORNER_INSET,
@@ -37,6 +37,12 @@ import {
   traySide,
   cornerRowOffset,
 } from "../helpers/narrowTray";
+
+/** The button bar along the top (toggle, history, Clear) */
+const BAR_HEIGHT = CORNER_INSET + CORNER_BUTTON + CORNER_INSET;
+
+/** The dice grid's smallest height: two 72px rows and its lines */
+const GRID_MIN_HEIGHT = 2 * 72 + 3 * LINE_WIDTH;
 
 /** Space between the avatars in the players strip, in pixels */
 const STRIP_GAP = 8;
@@ -91,11 +97,14 @@ export function DicePanel({
           // The panel colour, letting the tray show faintly through
           bgcolor: alpha(theme.palette.background.default, 0.97),
           px: `${CORNER_INSET}px`,
-          // Below the buttons along the tray's top edge
-          pt: trayTop(CORNER_INSET + CORNER_BUTTON + 16),
+          // Below the buttons along the tray's top edge. The dice grid's top
+          // border is the line under them.
+          pt: trayTop(BAR_HEIGHT),
           pb: `${CORNER_INSET}px`,
-          gap: 1.5,
+          gap: 1,
           overflowY: "auto",
+          // Only scrolls up and down
+          overflowX: "hidden",
         }}
       >
         {/* Lined up with the tray's corner buttons: the panel toggle (see
@@ -126,9 +135,22 @@ export function DicePanel({
             </Tooltip>
           </Box>
         </Fade>
-        <DicePicker variant="panel" onAddToRoll={onClose} />
-        <Box component="div" flexGrow={1} />
-        {/* Other players in a strip above the roll buttons, scrolling
+        {/* The dice grid runs the full width of the panel. It's a square,
+            and the only part of the panel that shrinks: once the space
+            above the Roll row is used up it gets flatter, down to 72px
+            rows, before the panel scrolls. */}
+        <Box
+          component="div"
+          mx={`-${CORNER_INSET}px`}
+          sx={{
+            aspectRatio: "1",
+            flexShrink: 1,
+            minHeight: GRID_MIN_HEIGHT,
+          }}
+        >
+          <DicePicker variant="panel" onAddToRoll={onClose} />
+        </Box>
+        {/* Other players in a strip right under the dice grid, scrolling
             sideways when they don't fit (centred when they do) */}
         <PluginGate>
           <Stack
@@ -138,18 +160,19 @@ export function DicePanel({
             gap={`${STRIP_GAP}px`}
             mx={`-${CORNER_INSET}px`}
             px={`${CORNER_INSET}px`}
-            pt={1}
+            pt={0.5}
             pb={0.5}
             sx={{
+              // Its full height: as it hides its overflow, the panel's column
+              // could otherwise squeeze it and cut off the avatars
+              flexShrink: 0,
               overflowX: "auto",
               // Badges reach below the avatars, don't scroll for them
               overflowY: "hidden",
               // Scrolls by swiping, without a scrollbar
               scrollbarWidth: "none",
               "&::-webkit-scrollbar": { display: "none" },
-              // Divider above the players, gone with the strip when empty
-              borderTop: 1,
-              borderColor: getAccentForegroundColor(theme),
+              // Gone when there are no other players
               "&:empty": { display: "none" },
               "& > :first-of-type": { ml: "auto" },
               "& > :last-of-type": { mr: "auto" },
@@ -164,8 +187,11 @@ export function DicePanel({
           </Stack>
         </PluginGate>
         {/* With dice in the tray, picking a die rolls it straight in and the
-            tray's roll controls and result are here too */}
-        {hasRoll ? <RollResultRow onRoll={onClose} /> : <RollRow />}
+            tray's roll controls and result are here too. Pushed to the
+            bottom by the free space (a margin, so it adds no extra gap). */}
+        <Box component="div" mt="auto">
+          {hasRoll ? <RollResultRow onRoll={onClose} /> : <RollRow />}
+        </Box>
       </Stack>
     </Fade>
   );
@@ -185,6 +211,7 @@ function RollRow() {
     ([id, count]) => count > 0 && diceById[id]?.type === "CARD"
   );
   const pressTime = useRef<number | null>(null);
+  const theme = useTheme();
 
   return (
     <Stack direction="row" gap={1} alignItems="center">
@@ -192,13 +219,18 @@ function RollRow() {
         <IconButton
           onClick={() => toggleHidden()}
           aria-label={hidden ? "Show roll" : "Hide roll"}
-          sx={{ bgcolor: "action.hover", width: 40, height: 40 }}
+          // No background: the icon turns green when the roll is hidden
+          sx={{
+            width: 40,
+            height: 40,
+            color: hidden ? getAccentForegroundColor(theme) : undefined,
+          }}
         >
           {hidden ? <HiddenOnIcon /> : <HiddenOffIcon />}
         </IconButton>
       </Tooltip>
       <Button
-        variant="contained"
+        variant="outlined"
         size="large"
         fullWidth
         disabled={!hasDice}
@@ -210,7 +242,21 @@ function RollRow() {
           rollDicePool(getThrowSpeed(pressTime.current));
           pressTime.current = null;
         }}
-        sx={{ borderRadius: "20px", height: 40, whiteSpace: "nowrap" }}
+        sx={{
+          borderRadius: "20px",
+          height: 40,
+          whiteSpace: "nowrap",
+          // Text in the green that reads on the panel, outline in the accent
+          color: getAccentForegroundColor(theme),
+          borderColor: getAccentLineColor(theme),
+          borderWidth: LINE_WIDTH,
+          "&:hover": {
+            borderColor: getAccentLineColor(theme),
+            borderWidth: LINE_WIDTH,
+            bgcolor: alpha(getAccentForegroundColor(theme), 0.08),
+          },
+          "&.Mui-disabled": { borderWidth: LINE_WIDTH },
+        }}
       >
         {hasCards ? "Draw" : "Roll"}
         {hidden && " (hidden)"}
@@ -246,13 +292,9 @@ export function DicePanelToggle({
           top: trayTop(),
           left: traySide(),
           zIndex: 3,
-          color: open ? getAccentTextColor(theme) : "white",
-          bgcolor: open ? getAccentColor(theme) : "rgba(0, 0, 0, 0.45)",
-          "&:hover": {
-            bgcolor: open
-              ? darken(getAccentColor(theme), 0.15)
-              : "rgba(0, 0, 0, 0.6)",
-          },
+          // No background: white over the tray, the icon colour over the
+          // open panel
+          color: open ? "action.active" : "white",
         }}
       >
         <DiceIcon />
@@ -262,8 +304,8 @@ export function DicePanelToggle({
 }
 
 /**
- * The result (and Reroll if shown), as along the bottom of the tray. Push is
- * first among the dice buttons.
+ * The result, with Push bottom left (and Reroll right if shown), as along the
+ * bottom of the tray
  */
 function RollResultRow({ onRoll }: { onRoll: () => void }) {
   const roll = useDiceRollStore((state) => state.roll);
@@ -292,7 +334,26 @@ function RollResultRow({ onRoll }: { onRoll: () => void }) {
       gap={1}
       minHeight={CORNER_BUTTON}
     >
+      {/* Push bottom left, as on the tray */}
       <Box component="div" width={CORNER_BUTTON} flexShrink={0}>
+        {!isCards && <PushButton onPush={onRoll} />}
+      </Box>
+      <Stack alignItems="center" minWidth={0} flexGrow={1}>
+        {finishedValues && (
+          <DiceResults
+            diceRoll={roll}
+            rollValues={finishedValues}
+            onTray={false}
+          />
+        )}
+      </Stack>
+      <Box
+        component="div"
+        width={CORNER_BUTTON}
+        flexShrink={0}
+        display="flex"
+        justifyContent="flex-end"
+      >
         {SHOW_REROLL && !isCards && finishedValues && (
           <Tooltip title="Reroll" disableInteractive>
             <IconButton
@@ -307,17 +368,6 @@ function RollResultRow({ onRoll }: { onRoll: () => void }) {
           </Tooltip>
         )}
       </Box>
-      <Stack alignItems="center" minWidth={0} flexGrow={1}>
-        {finishedValues && (
-          <DiceResults
-            diceRoll={roll}
-            rollValues={finishedValues}
-            onTray={false}
-          />
-        )}
-      </Stack>
-      {/* Balances the reroll space so the result stays centred */}
-      <Box component="div" width={CORNER_BUTTON} flexShrink={0} />
     </Stack>
   );
 }

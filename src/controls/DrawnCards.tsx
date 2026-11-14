@@ -13,64 +13,77 @@ import {
 } from "../cards/cardDeck";
 import { getCardBackImage, getCardImage } from "../cards/cardImages";
 import { formatCard } from "../cards/cards";
-import { SidebarCollapse } from "./SidebarCollapse";
-import shuffleImage from "../previews/card-shuffle.png";
+import { ShuffleButtonImage } from "../icons/DieButtonImage";
+import { getPanelIconColor } from "../helpers/accent";
 
 /** Share of a card left showing under the next one */
 const INITIATIVE_PEEK = 0.64;
 /** Space between cards side by side */
 const ROW_GAP = 2;
 
-/** Return all cards to the deck, for the GM once cards have been drawn */
+/**
+ * Return all cards to the deck. Always shown next to the card button, but
+ * only the GM can shuffle, once cards have been drawn.
+ */
 export function ShuffleButton({
   variant = "sidebar",
 }: {
   /** In the phone dice panel: as big as the dice buttons in its grid */
   variant?: "sidebar" | "panel";
 }) {
-  const showShuffle = useCardDeckStore(canShuffle);
+  const enabled = useCardDeckStore(canShuffle);
   const cardsLeft = useCardDeckStore(getCardsLeft);
+  const mode = useCardDeckStore((state) => state.mode);
+  const isGM = useCardDeckStore((state) => state.role === "GM");
 
-  if (variant === "panel") {
-    return showShuffle ? (
-      <Tooltip
-        title={`Shuffle (${cardsLeft} left)`}
-        placement="top"
-        disableInteractive
-      >
-        <ButtonBase
-          onClick={() => shuffleDeck()}
-          aria-label="Shuffle"
-          sx={{ width: "100%", aspectRatio: "1", borderRadius: "50%" }}
-        >
-          <Box
-            component="img"
-            src={shuffleImage}
-            alt="Shuffle"
-            sx={{ width: "100%", height: "100%", display: "block" }}
-          />
-        </ButtonBase>
-      </Tooltip>
-    ) : null;
-  }
+  const title = enabled
+    ? `Shuffle (${cardsLeft} left)`
+    : mode === "SCENE" && !isGM
+    ? "Only the GM can shuffle"
+    : "No cards drawn";
 
   return (
-    <SidebarCollapse in={showShuffle}>
-      <Tooltip
-        title={`Shuffle (${cardsLeft} left)`}
-        placement="right"
-        disableInteractive
+    <Tooltip
+      title={title}
+      placement={variant === "panel" ? "top" : "right"}
+      disableInteractive
+    >
+      {/* Wrapped so the tooltip works on the disabled button */}
+      <Box
+        component="span"
+        display="flex"
+        justifyContent="center"
+        height={variant === "panel" ? "100%" : undefined}
       >
-        <IconButton onClick={() => shuffleDeck()} sx={{ p: 0 }}>
-          <Box
-            component="img"
-            src={shuffleImage}
-            alt="Shuffle"
-            sx={{ width: "38px", height: "38px", display: "block" }}
-          />
-        </IconButton>
-      </Tooltip>
-    </SidebarCollapse>
+        {variant === "panel" ? (
+          <ButtonBase
+            onClick={() => shuffleDeck()}
+            disabled={!enabled}
+            aria-label="Shuffle"
+            sx={{
+              // The whole grid cell, like the dice buttons
+              width: "100%",
+              height: "100%",
+              borderRadius: 0,
+              color: getPanelIconColor,
+              // Only the icon dims, the square keeps its background
+              ".die-button-image": { opacity: enabled ? 1 : 0.4 },
+            }}
+          >
+            <ShuffleButtonImage variant="panel" />
+          </ButtonBase>
+        ) : (
+          <IconButton
+            onClick={() => shuffleDeck()}
+            disabled={!enabled}
+            aria-label="Shuffle"
+            sx={{ p: 0, opacity: enabled ? 1 : 0.4 }}
+          >
+            <ShuffleButtonImage />
+          </IconButton>
+        )}
+      </Box>
+    </Tooltip>
   );
 }
 

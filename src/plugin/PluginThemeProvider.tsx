@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import { ACCENT, ACCENT_TEXT } from "../helpers/accent";
 
 /** Alien Dice's own panel colours, in place of OBR's */
-const PANEL_DARK = "#161818";
-const PANEL_LIGHT = "#F9F7EF";
+export const PANEL_DARK = "#161818";
+const PANEL_LIGHT = "#F4F4F4";
 
 /**
  * The green accent as the primary colour instead of OBR's purple, so MUI's

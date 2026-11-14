@@ -33,6 +33,19 @@ export function getAccentForegroundColor(theme: Theme) {
   return theme.palette.mode === "light" ? ACCENT : ACCENT_FOREGROUND_DARK;
 }
 
+/** Width of the green lines and outlines, in pixels */
+export const LINE_WIDTH = 2;
+
+/** Green lines and outlines in the phone panel: the accent in both modes */
+export function getAccentLineColor(_theme?: Theme) {
+  return ACCENT;
+}
+
+/** Icons on the phone panel's big dice buttons: the accent in both modes */
+export function getPanelIconColor(_theme?: Theme) {
+  return ACCENT;
+}
+
 /**
  * Panic result colour: stress die yellow over the tray (always dark) and on
  * dark backgrounds. Yellow doesn't show on light ones, so they use the accent.
