@@ -1,14 +1,14 @@
-import backImage from "./card-initiative-back.png";
+import backImage from "./card-initiative-back.webp";
 import { getCardFileName } from "./cards";
 
 /** Card face images by file name, e.g. "card-7-initiative" */
 const faceImages: Record<string, string> = {};
-const faceModules = import.meta.glob("./faces-initiative/*.png", {
+const faceModules = import.meta.glob("./faces-initiative/*.webp", {
   eager: true,
   import: "default",
 }) as Record<string, string>;
 for (const [path, url] of Object.entries(faceModules)) {
-  const name = path.split("/").pop()!.replace(".png", "");
+  const name = path.split("/").pop()!.replace(".webp", "");
   faceImages[name] = url;
 }
 
