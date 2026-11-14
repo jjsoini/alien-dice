@@ -5,5 +5,6 @@ import D10 from "./d100.png";
 import D12 from "./d100.png";
 import D20 from "./d100.png";
 import D100 from "./d100.png";
+import CARD from "../card-initiative.png";
 
-export { D4, D6, D8, D10, D12, D20, D100 };
+export { D4, D6, D8, D10, D12, D20, D100, CARD };

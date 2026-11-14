@@ -10,7 +10,6 @@ function checkD100Combination(
   dice: Dice,
   values: Record<string, number>
 ): number | null {
-  const bonus = dice.bonus || 0;
   if (
     dice.dice.length === 2 &&
     (dice.combination === undefined || dice.combination === "SUM")
@@ -22,9 +21,9 @@ function checkD100Combination(
       const v2 = values[d2.id];
       if (v1 !== undefined && v2 !== undefined) {
         if (v1 === 0 && v2 === 0) {
-          return 100 + bonus;
+          return 100;
         } else {
-          return v1 + v2 + bonus;
+          return v1 + v2;
         }
       }
     }
@@ -52,10 +51,11 @@ export function getCombinedDiceValue(
     if (isDie(dieOrDice)) {
       const value = values[dieOrDice.id];
       if (value !== undefined) {
-        if (value >= 6){ 
-          currentValues.push(1);
+        if (dieOrDice.type === "D6") {
+          // A 6 on a base or stress die is a success
+          currentValues.push(value === 6 ? 1 : 0);
         } else {
-          currentValues.push(0);
+          currentValues.push(value);
         }
       }
     } else if (isDice(dieOrDice)) {
@@ -66,19 +66,13 @@ export function getCombinedDiceValue(
     }
   }
 
-  const bonus = dice.bonus || 0;
-
   if (currentValues.length === 0 || dice.combination === "NONE") {
-    if (dice.bonus === undefined) {
-      return null;
-    } else {
-      return dice.bonus;
-    }
+    return null;
   } else if (dice.combination === "HIGHEST") {
-    return Math.max(...currentValues) + bonus;
+    return Math.max(...currentValues);
   } else if (dice.combination === "LOWEST") {
-    return Math.min(...currentValues) + bonus;
+    return Math.min(...currentValues);
   } else {
-    return currentValues.reduce((a, b) => a + b) + bonus;
+    return currentValues.reduce((a, b) => a + b);
   }
 }

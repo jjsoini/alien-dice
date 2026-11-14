@@ -18,15 +18,14 @@ import { WeightClass } from "../types/WeightClass";
 
 export function PreviewDiceRoll() {
   const counts = useDiceControlsStore((state) => state.diceCounts);
-  const advantage = useDiceControlsStore((state) => state.diceAdvantage);
   const diceById = useDiceControlsStore((state) => state.diceById);
   const defaultDiceCounts = useDiceControlsStore(
     (state) => state.defaultDiceCounts
   );
 
   const diceRoll = useMemo<DiceRoll>(() => {
-    return { dice: getDiceToRoll(counts, advantage, diceById) };
-  }, [counts, advantage, diceById]);
+    return { dice: getDiceToRoll(counts, diceById) };
+  }, [counts, diceById]);
 
   const dice = useMemo(() => getDieFromDice(diceRoll), [diceRoll]);
 
@@ -54,7 +53,7 @@ export function PreviewDiceRoll() {
   const listener = useAudioListener();
 
   const diceWeight = useMemo<WeightClass>(() => {
-      return "MEDIUM";
+    return "MEDIUM";
   }, [dice]);
 
   // Play a roll sound when the dice button is in focus
@@ -127,6 +126,17 @@ function AnimatedDice({
 
   const [seed] = useState(() => Math.random());
 
+  // Cards hover face down with a slight random tilt, dice at any angle
+  const quaternion = useMemo<[number, number, number, number]>(() => {
+    if (die.type === "CARD") {
+      const q = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(Math.PI, r.y * 0.3, 0)
+      );
+      return [q.x, q.y, q.z, q.w];
+    }
+    return [r.x, r.y, r.z, r.w];
+  }, [die.type, r]);
+
   const animationTimeRef = useRef(0);
   useFrame((_, delta) => {
     const group = groupRef.current;
@@ -164,11 +174,7 @@ function AnimatedDice({
   return (
     <group ref={diceRef} position={[p.x, p.y, p.z]} scale={0}>
       <group ref={groupRef}>
-        <Dice
-          userData={{ dieId: die.id }}
-          die={die}
-          quaternion={[r.x, r.y, r.z, r.w]}
-        />
+        <Dice userData={{ dieId: die.id }} die={die} quaternion={quaternion} />
       </group>
     </group>
   );

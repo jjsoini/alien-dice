@@ -3,7 +3,14 @@ import { useEffect, useState } from "react";
 
 import Box from "@mui/material/Box";
 
-import { PopoverTray } from "./PopoverTray";
+import {
+  COMPACT_SIZE,
+  MARGIN,
+  NAME_HEIGHT,
+  PopoverTray,
+  PopoverTraySize,
+  getPopoverTraySize,
+} from "./PopoverTray";
 import { getPluginId } from "./getPluginId";
 
 export function PopoverTrays() {
@@ -42,17 +49,29 @@ export function PopoverTrays() {
     }
   }
 
-  // Hide popover when no trays are visible
+  // Hide popover when no trays are visible. When shown, size it to the
+  // screen: a small card in the corner, or nearly full width on phones.
   const hidden = visibleTrays.length === 0;
+  const [size, setSize] = useState<PopoverTraySize>(COMPACT_SIZE);
   useEffect(() => {
     if (hidden) {
       OBR.popover.setHeight(getPluginId("popover"), 0);
       OBR.popover.setWidth(getPluginId("popover"), 0);
     } else {
-      // Height = Tray + Name + Bottom
-      OBR.popover.setHeight(getPluginId("popover"), 298);
-      // Width = Tray + Right
-      OBR.popover.setWidth(getPluginId("popover"), 266);
+      // Checked each time, the screen may have been turned
+      Promise.all([OBR.viewport.getWidth(), OBR.viewport.getHeight()]).then(
+        ([viewportWidth, viewportHeight]) => {
+          const size = getPopoverTraySize(viewportWidth, viewportHeight);
+          setSize(size);
+          // Height = Tray + Name + Bottom
+          OBR.popover.setHeight(
+            getPluginId("popover"),
+            size.trayHeight + NAME_HEIGHT + MARGIN
+          );
+          // Width = Tray + Right
+          OBR.popover.setWidth(getPluginId("popover"), size.width + MARGIN);
+        }
+      );
     }
   }, [hidden]);
 
@@ -72,6 +91,7 @@ export function PopoverTrays() {
           player={player}
           onToggle={handleTrayToggle}
           onOpen={handleTrayOpen}
+          size={size}
         />
       ))}
     </Box>

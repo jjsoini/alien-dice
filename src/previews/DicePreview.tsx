@@ -11,21 +11,31 @@ const previews: Record<DiceStyle, Record<DiceType, string>> = {
   STRESS: stressDiePreviews,
 };
 
+type PreviewSize = "small" | "medium" | "large" | "fill";
+
+const PREVIEW_SIZES: Record<PreviewSize, string> = {
+  small: "28px",
+  medium: "34px",
+  large: "38px",
+  /** As big as its container */
+  fill: "100%",
+};
+
 interface PreviewImageProps {
-  size?: "small" | "medium" | "large";
+  size?: PreviewSize;
 }
 
 const PreviewImage = styled("img", {
   shouldForwardProp: (prop) => prop !== "size",
 })<PreviewImageProps>(({ size }) => ({
-  width: size === "small" ? "28px" : size === "medium" ? "34px" : "38px",
-  height: size === "small" ? "28px" : size === "medium" ? "34px" : "38px",
+  width: PREVIEW_SIZES[size ?? "large"],
+  height: PREVIEW_SIZES[size ?? "large"],
 }));
 
 type DiePreviewProps = {
   diceType: DiceType;
   diceStyle: DiceStyle;
-  size?: "small" | "medium" | "large";
+  size?: PreviewSize;
 };
 
 export function DicePreview({ diceType, diceStyle, size }: DiePreviewProps) {

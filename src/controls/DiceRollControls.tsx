@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
@@ -8,30 +8,22 @@ import Fade from "@mui/material/Fade";
 import { useTheme, keyframes } from "@mui/material/styles";
 import Button from "@mui/material/Button";
 import ButtonBase from "@mui/material/ButtonBase";
-import Typography from "@mui/material/Typography";
 
 import CloseIcon from "@mui/icons-material/CloseRounded";
-import HiddenIcon from "@mui/icons-material/VisibilityOffRounded";
 import RollIcon from "@mui/icons-material/ArrowForwardRounded";
 
 import { RerollDiceIcon } from "../icons/RerollDiceIcon";
-import { PushDiceIcon } from "../icons/PushDiceIcon";
-import { DeleteDieIcon } from "../icons/DeleteDieIcon";
-import { DeleteStressIcon } from "../icons/DeleteStressIcon";
-import { AddDieIcon } from "../icons/AddDieIcon";
-import { AddStressIcon } from "../icons/AddStressIcon";
+import { SHOW_REROLL } from "./PushButton";
 
 import { GradientOverlay } from "./GradientOverlay";
 import { useDiceRollStore } from "../dice/store";
 import { DiceResults } from "./DiceResults";
-import { getDiceToRoll, useDiceControlsStore } from "./store";
-import { getDiceToPush } from "../helpers/getDiceToPush";
-import { getDieToDelete } from "../helpers/getDieToDelete";
+import { useDiceControlsStore } from "./store";
 import { DiceType } from "../types/DiceType";
-import { useDiceHistoryStore } from "./history";
-import { Die } from "../types/Die";
-import { Dice } from "../types/Dice";
-
+import { isCardRoll } from "../types/Dice";
+import { getCantDrawReason, useCardDeckStore } from "../cards/cardDeck";
+import { getThrowSpeed, resetDicePool, rollDicePool } from "./rollDicePool";
+import { useTrayInset } from "../helpers/narrowTray";
 
 const jiggle = keyframes`
 0% { transform: translate(0, 0) rotate(0deg); }
@@ -47,17 +39,13 @@ export function DiceRollControls() {
   );
 
   const counts = useDiceControlsStore((state) => state.diceCounts);
-  const bonus = useDiceControlsStore((state) => state.diceBonus);
-  const advantage = useDiceControlsStore((state) => state.diceAdvantage);
-  // Is currently the default dice state (all counts 0 and advantage/bonus defaults)
+  // Is currently the default dice state (all counts 0)
   const isDefault = useMemo(
     () =>
       Object.entries(defaultDiceCounts).every(
         ([type, count]) => counts[type as DiceType] === count
-      ) &&
-      advantage === null &&
-      bonus === 0,
-    [counts, defaultDiceCounts, advantage, bonus]
+      ),
+    [counts, defaultDiceCounts]
   );
 
   const rollValues = useDiceRollStore((state) => state.rollValues);
@@ -92,49 +80,31 @@ export function DiceRollControls() {
 }
 
 function DicePickedControls() {
-  const startRoll = useDiceRollStore((state) => state.startRoll);
-
+  const inset = useTrayInset();
   const defaultDiceCounts = useDiceControlsStore(
     (state) => state.defaultDiceCounts
   );
   const diceById = useDiceControlsStore((state) => state.diceById);
   const counts = useDiceControlsStore((state) => state.diceCounts);
   const hidden = useDiceControlsStore((state) => state.diceHidden);
-  const bonus = useDiceControlsStore((state) => state.diceBonus);
-  const setBonus = useDiceControlsStore((state) => state.setDiceBonus);
-  const advantage = useDiceControlsStore((state) => state.diceAdvantage);
-  const setAdvantage = useDiceControlsStore((state) => state.setDiceAdvantage);
 
-  const resetDiceCounts = useDiceControlsStore(
-    (state) => state.resetDiceCounts
+  /** Cards are drawn rather than rolled */
+  const hasCards = Object.entries(counts).some(
+    ([id, count]) => count > 0 && diceById[id]?.type === "CARD"
   );
 
-  const pushRecentRoll = useDiceHistoryStore((state) => state.pushRecentRoll);
-
   function handleRoll() {
-    if (hasDice && rollPressTime) {
-      const dice = getDiceToRoll(counts, advantage, diceById);
-      const activeTimeSeconds = (performance.now() - rollPressTime) / 1000;
-      const speedMultiplier = Math.max(1, Math.min(10, activeTimeSeconds * 2));
-      startRoll({ dice, bonus, hidden }, speedMultiplier);
-
-      const rolledDiceById: Record<string, Die> = {};
-      for (const id of Object.keys(counts)) {
-        if (!(id in rolledDiceById)) {
-          rolledDiceById[id] = diceById[id];
-        }
-      }
-      pushRecentRoll({ advantage, counts, bonus, diceById: rolledDiceById });
-
+    // Someone may have emptied the deck (or you drew) since picking the cards
+    if (hasCards && getCantDrawReason(useCardDeckStore.getState())) {
       handleReset();
+    } else if (hasDice && rollPressTime) {
+      rollDicePool(getThrowSpeed(rollPressTime));
     }
     setRollPressTime(null);
   }
 
   function handleReset() {
-    resetDiceCounts();
-    setBonus(0);
-    setAdvantage(null);
+    resetDicePool();
   }
 
   const rollPressTime = useDiceControlsStore(
@@ -189,7 +159,8 @@ function DicePickedControls() {
           ":hover #dice-roll-button": hasDice
             ? {
                 color: theme.palette.primary.contrastText,
-                width: "100px",
+                // Room for the "(hidden)" suffix
+                width: hidden ? "160px" : "100px",
                 "& span": {
                   transform: "translateX(0)",
                 },
@@ -240,6 +211,7 @@ function DicePickedControls() {
               minWidth: 0,
               width: "36px",
               overflow: "hidden",
+              whiteSpace: "nowrap",
               borderRadius: "20px",
             }}
             endIcon={<RollIcon />}
@@ -249,17 +221,18 @@ function DicePickedControls() {
             // @ts-ignore
             component="div"
           >
-            Roll
+            {hasCards ? "Draw" : "Roll"}
+            {hidden && " (hidden)"}
           </Button>
         </Box>
       </ButtonBase>
       <GradientOverlay top />
       <Stack
         sx={{
+          // Top right, where Clear is when there are dice in the tray
           position: "absolute",
-          top: 12,
-          left: "50%",
-          transform: "translateX(-50%)",
+          top: inset,
+          right: inset,
         }}
       >
         <Tooltip title="Clear" disableInteractive>
@@ -273,54 +246,16 @@ function DicePickedControls() {
           </IconButton>
         </Tooltip>
       </Stack>
-      <Stack
-        sx={{
-          position: "absolute",
-          top: 12,
-          left: 24,
-        }}
-      >
-        {advantage && (
-          <Typography
-            textAlign="left"
-            lineHeight="40px"
-            color="white"
-            variant="h6"
-          >
-            {advantage === "ADVANTAGE" ? "Adv" : "Dis"}
-          </Typography>
-        )}
-      </Stack>
-      <Stack
-        sx={{
-          position: "absolute",
-          top: 12,
-          right: 24,
-        }}
-      >
-        {bonus !== 0 && (
-          <Typography
-            textAlign="right"
-            variant="h6"
-            lineHeight="40px"
-            color="white"
-          >
-            {bonus > 0 && "+"}
-            {bonus}
-          </Typography>
-        )}
-      </Stack>
     </>
   );
 }
 
 function FinishedRollControls() {
+  const inset = useTrayInset();
   const roll = useDiceRollStore((state) => state.roll);
   const clearRoll = useDiceRollStore((state) => state.clearRoll);
   const reroll = useDiceRollStore((state) => state.reroll);
-  const push = useDiceRollStore((state) => state.push);
-  const addDie = useDiceRollStore((state) => state.addDie);
-  const addStress = useDiceRollStore((state) => state.addStress);
+  const isCards = roll ? isCardRoll(roll) : false;
 
   const rollValues = useDiceRollStore((state) => state.rollValues);
   const finishedRollValues = useMemo(() => {
@@ -333,34 +268,8 @@ function FinishedRollControls() {
     return values;
   }, [rollValues]);
 
-  const [resultsExpanded, setResultsExpanded] = useState(false);
-
-  function pushRoll(){
-      if (getDiceToPush(roll as Dice, finishedRollValues) !== undefined) {
-        push(getDiceToPush(roll as Dice, finishedRollValues));
-      }
-  }
-
-  function addDieToRoll(isStress?:boolean){
-    if(isStress) {
-      addStress();
-    } else {
-      addDie();
-    }
-  }
-
-  function deleteDie(isStress?:boolean){
-
-    const id:string | undefined = getDieToDelete(roll as Dice, finishedRollValues, isStress);
-    if (id !== undefined) {
-      clearRoll(id);
-    }
-
-  }
-
   return (
     <>
-      <GradientOverlay top height={resultsExpanded ? 500 : undefined} />
       <Box
         sx={{
           position: "absolute",
@@ -368,129 +277,71 @@ function FinishedRollControls() {
           left: 0,
           width: "100%",
           pointerEvents: "none",
-          padding: 3,
+          padding: `${inset}px`,
         }}
         component="div"
       >
         <Stack
           direction="row"
-          justifyContent="space-between"
+          justifyContent="flex-end"
           width="100%"
           alignItems="start"
         >
-          <Stack direction="column" spacing={0}>
-            <Tooltip title="Push" sx={{ pointerEvents: "all" }}>
-              <IconButton
-                onClick={() => pushRoll()}
-                sx={{ pointerEvents: "all", color: "white" }}
-              >
-                <PushDiceIcon />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-          <Stack direction="row-reverse" spacing={1}>
-            <Tooltip title="Clear" sx={{ pointerEvents: "all" }}>
-              <IconButton
-                onClick={() => clearRoll()}
-                sx={{ pointerEvents: "all", color: "white" }}
-              >
-                <CloseIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Reroll" sx={{ pointerEvents: "all" }}>
-              <IconButton
-                onClick={() => reroll()}
-                sx={{ pointerEvents: "all", color: "white" }}
-              >
-                <RerollDiceIcon />
-              </IconButton>
-            </Tooltip>
-          </Stack> 
+          <Tooltip title="Clear" sx={{ pointerEvents: "all" }}>
+            <IconButton
+              onClick={() => clearRoll()}
+              sx={{ pointerEvents: "all", color: "white" }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Tooltip>
         </Stack>
       </Box>
-
-      <Box
-        sx={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          width: "100%",
-          pointerEvents: "none",
-          padding: 3,
-        }}
-        component="div"
-      >
+      {/* Reroll bottom left when shown. Push is with the dice buttons, and
+          cards are drawn once per shuffle: no reroll. */}
+      {SHOW_REROLL && !isCards && (
         <Stack
           direction="row"
           justifyContent="space-between"
-          width="100%"
-          alignItems="start"
+          alignItems="end"
+          sx={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            pointerEvents: "none",
+            padding: `${inset}px`,
+          }}
+          component="div"
         >
-          <Stack direction="row" spacing={1}>
-          <Tooltip title="Roll base die" placement="top" sx={{ pointerEvents: "all" }}>
-              <IconButton
-                onClick={() => addDieToRoll()}
-                sx={{ pointerEvents: "all", color: "white" }}
-              >
-                <AddDieIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Roll stress die" placement="top" sx={{ pointerEvents: "all" }}>
-              <IconButton
-                onClick={() => addDieToRoll(true)}
-                sx={{ pointerEvents: "all", color: "white" }}
-              >
-                <AddStressIcon />
-              </IconButton>
-            </Tooltip>
-
-            </Stack>
-          <Stack direction="row" spacing={1}>
-
-            <Tooltip title="Remove base die" placement="top" sx={{ pointerEvents: "all" }}>
-              <IconButton
-                onClick={() => deleteDie()}
-                sx={{ pointerEvents: "all", color: "white" }}
-              >
-                <DeleteDieIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Remove stress" placement="top" sx={{ pointerEvents: "all" }}>
-              <IconButton
-                onClick={() => deleteDie(true)}
-                sx={{ pointerEvents: "all", color: "white" }}
-              >
-                <DeleteStressIcon />
-              </IconButton>
-            </Tooltip>
-            </Stack>
+          <Tooltip title="Reroll" sx={{ pointerEvents: "all" }}>
+            <IconButton
+              onClick={() => reroll()}
+              sx={{ pointerEvents: "all", color: "white" }}
+            >
+              <RerollDiceIcon />
+            </IconButton>
+          </Tooltip>
         </Stack>
-      </Box>
-
+      )}
       <Stack
         sx={{
           position: "absolute",
-          top: 0,
-          left: "50%",
-          transform: "translateX(-50%)",
+          bottom: 0,
+          // Full width less the buttons in the corners
+          // (a centred left: 50% box would wrap the result to half the tray)
+          left: 0,
+          right: 0,
           pointerEvents: "none",
-          padding: 3,
+          padding: `${inset}px`,
+          // Clear of the buttons in the corners
+          px: `${inset + 48}px`,
           alignItems: "center",
         }}
         component="div"
       >
         {roll && (
-          <DiceResults
-            diceRoll={roll}
-            rollValues={finishedRollValues}
-            expanded={resultsExpanded}
-            onExpand={setResultsExpanded}
-          />
-        )}
-        {roll?.hidden && (
-          <Tooltip title="Hidden Roll" sx={{ pointerEvents: "all" }}>
-            <HiddenIcon htmlColor="white" />
-          </Tooltip>
+          <DiceResults diceRoll={roll} rollValues={finishedRollValues} />
         )}
       </Stack>
     </>

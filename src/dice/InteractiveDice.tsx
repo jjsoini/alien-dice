@@ -7,23 +7,33 @@ import { Die } from "../types/Die";
 import { Dice } from "./Dice";
 import { useDiceRollStore } from "./store";
 import { DiceVector3 } from "../types/DiceVector3";
-import { DiceThrow } from "../types/DiceThrow";
-import {
-  randomAngularVelocity,
-  randomLinearVelocity,
-  randomLinearVelocityFromDirection,
-  randomRotation,
-} from "../helpers/DiceThrower";
+import { CARD_HALF_DIAGONAL } from "../cards/cardSize";
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
 const DRAG_HEIGHT = 0.5;
-const DRAG_HISTORY_WINDOW_SIZE = 5;
+/** Dragged dice follow the pointer at this height, whatever the camera zoom */
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -DRAG_HEIGHT);
+/** Long enough for the pick up / drop springs to settle */
+const SPRING_RENDER_MS = 1500;
 
-type DragState = { p: { x: number; z: number }; t: number };
+/** Inner bounds of the tray (see TrayColliders) */
+const TRAY_HALF_WIDTH = 0.46;
+const TRAY_HALF_DEPTH = 0.96;
+/** Margin to keep a die inside the tray */
+const DIE_MARGIN = 0.06;
+/** Cards can be turned, so keep half of their diagonal inside the tray */
+const CARD_MARGIN = CARD_HALF_DIAGONAL;
 
-/** Custom dice can be dragged to re-roll */
+function clamp(value: number, limit: number) {
+  return Math.min(Math.max(value, -limit), limit);
+}
+
+/**
+ * Dice can be dragged to move them around the tray.
+ * Moving a die never rerolls it, its result stays the same.
+ */
 export function InteractiveDice(
   props: JSX.IntrinsicElements["group"] & {
     die: Die;
@@ -35,8 +45,6 @@ export function InteractiveDice(
   const { invalidate, camera, size } = useThree();
 
   const pointerDownPositionRef = useRef({ x: 0, y: 0 });
-  /** Keep a history of previous drag positions so we can calculate the throw direction and speed */
-  const dragHistoryRef = useRef<DragState[]>([]);
 
   const handlePointerDown = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
@@ -48,11 +56,13 @@ export function InteractiveDice(
         pointer.x = (x / size.width) * 2 - 1;
         pointer.y = -((y / size.height) * 2 - 1);
         raycaster.setFromCamera(pointer, camera);
-        const position = raycaster.ray.origin.add(
-          raycaster.ray.direction.multiplyScalar(
-            camera.position.y - DRAG_HEIGHT
-          )
+        const position = raycaster.ray.intersectPlane(
+          dragPlane,
+          new THREE.Vector3()
         );
+        if (!position) {
+          return;
+        }
         // Offset the drag anchor so that the x and y animate to the
         // pointer position
         setDragAnchor({
@@ -67,7 +77,7 @@ export function InteractiveDice(
     [size.width, size.height]
   );
 
-  const reroll = useDiceRollStore((state) => state.reroll);
+  const moveDie = useDiceRollStore((state) => state.moveDie);
 
   useEffect(() => {
     if (dragAnchor) {
@@ -81,33 +91,12 @@ export function InteractiveDice(
           const minWidth = Math.max(e.width, 5);
           const minHeight = Math.max(e.height, 5);
           if (deltaX > minWidth || deltaY > minHeight) {
-            const position = {
-              x: dice.position.x,
-              // Fix dice throw position a 1 unit
-              y: 1,
-              z: dice.position.z,
-            };
-            // Find the direction of movement
-            let linearVelocity: DiceVector3;
-            const { direction, speed } = findDragVelocity(
-              dragHistoryRef.current
-            );
-            if (direction && speed) {
-              const speedMultiplier = Math.max(1, Math.min(10, speed * 100));
-              linearVelocity = randomLinearVelocityFromDirection(
-                { x: direction.x, y: 0, z: direction.z },
-                speedMultiplier
-              );
-            } else {
-              linearVelocity = randomLinearVelocity(position);
-            }
-            const diceThrow: DiceThrow = {
-              position,
-              linearVelocity,
-              angularVelocity: randomAngularVelocity(),
-              rotation: randomRotation(),
-            };
-            reroll([props.die.id], { [props.die.id]: diceThrow });
+            // Drop the die where it was dragged, keeping it inside the tray
+            const margin = props.die.type === "CARD" ? CARD_MARGIN : DIE_MARGIN;
+            const x = clamp(dice.position.x, TRAY_HALF_WIDTH - margin);
+            const z = clamp(dice.position.z, TRAY_HALF_DEPTH - margin);
+            dice.position.set(x, dice.position.y, z);
+            moveDie(props.die.id, x, z);
           }
         }
       };
@@ -121,28 +110,17 @@ export function InteractiveDice(
           pointer.x = (x / size.width) * 2 - 1;
           pointer.y = -((y / size.height) * 2 - 1);
           raycaster.setFromCamera(pointer, camera);
-          const position = raycaster.ray.origin.add(
-            raycaster.ray.direction.multiplyScalar(
-              camera.position.y - DRAG_HEIGHT
-            )
+          const position = raycaster.ray.intersectPlane(
+            dragPlane,
+            new THREE.Vector3()
           );
+          if (!position) {
+            return;
+          }
 
           // Offset initial anchor position
           const newDiceX = position.x - dragAnchor.x;
           const newDiceZ = position.z - dragAnchor.z;
-
-          // Push to history
-          const history = dragHistoryRef.current;
-          history.push({
-            p: {
-              x: newDiceX,
-              z: newDiceZ,
-            },
-            t: performance.now(),
-          });
-          if (history.length > DRAG_HISTORY_WINDOW_SIZE) {
-            history.shift();
-          }
 
           dice.position.set(newDiceX, dice.position.y, newDiceZ);
           invalidate();
@@ -161,14 +139,27 @@ export function InteractiveDice(
     camera,
     size.width,
     size.height,
-    reroll,
+    moveDie,
     props.die.id,
+    props.die.type,
     invalidate,
   ]);
 
+  // The tray only renders on demand, and react-spring 9.7 only advances its
+  // animations when a frame renders. Keep rendering while the pick up / drop
+  // animation plays, or the die stays hanging in the air after a drop.
   useEffect(() => {
-    invalidate();
-  }, [dragAnchor]);
+    const start = performance.now();
+    let frame = 0;
+    const tick = () => {
+      invalidate();
+      if (performance.now() - start < SPRING_RENDER_MS) {
+        frame = requestAnimationFrame(tick);
+      }
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [dragAnchor, invalidate]);
 
   const { position } = useSpring({
     position: (dragAnchor
@@ -177,7 +168,8 @@ export function InteractiveDice(
     onChange: () => {
       invalidate();
     },
-    config: dragAnchor ? config.wobbly : config.stiff,
+    // Clamp the drop so the spring doesn't overshoot down through the floor
+    config: dragAnchor ? config.wobbly : { ...config.stiff, clamp: true },
   });
 
   return (
@@ -185,44 +177,4 @@ export function InteractiveDice(
       <Dice onPointerDown={handlePointerDown} ref={diceRef} {...props}></Dice>
     </animated.group>
   );
-}
-
-/** Find the average direction and speed of a drag history */
-function findDragVelocity(history: DragState[]) {
-  if (history.length > 1) {
-    let avgDx = 0;
-    let avgDz = 0;
-    let avgSpeed = 0;
-    for (let i = 0; i < history.length - 2; i++) {
-      const curr = history[i];
-      const next = history[i + 1];
-
-      const dx = next.p.x - curr.p.x;
-      const dz = next.p.z - curr.p.z;
-      const dt = next.t - curr.t;
-
-      const vx = dx / dt;
-      const vz = dz / dt;
-      const speed = Math.sqrt(vx * vx + vz * vz);
-
-      avgDx += dx;
-      avgDz += dz;
-      avgSpeed += speed;
-    }
-    avgDx / history.length;
-    avgDz / history.length;
-    avgSpeed / history.length;
-
-    const deltaLength = Math.sqrt(avgDx * avgDx + avgDz * avgDz);
-    if (!isNaN(deltaLength) && deltaLength !== 0) {
-      // Normalize drag delta
-      const direction = {
-        x: avgDx / deltaLength,
-        z: avgDz / deltaLength,
-      };
-      return { direction, speed: avgSpeed };
-    }
-  }
-
-  return { direction: undefined, speed: undefined };
 }

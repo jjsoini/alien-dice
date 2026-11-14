@@ -4,9 +4,11 @@ import { diceSets } from "../sets/diceSets";
 import { Dice } from "../types/Dice";
 import { DiceSet } from "../types/DiceSet";
 import { Die } from "../types/Die";
+import { canAddDie } from "../helpers/diceLimits";
 import { generateDiceId } from "../helpers/generateDiceId";
+import { drawCards } from "../cards/cards";
+import { getDrawnCards, useCardDeckStore } from "../cards/cardDeck";
 
-export type Advantage = "ADVANTAGE" | "DISADVANTAGE" | null;
 export type DiceCounts = Record<string, number>;
 
 interface DiceControlsState {
@@ -14,8 +16,6 @@ interface DiceControlsState {
   diceById: Record<string, Die>;
   defaultDiceCounts: DiceCounts;
   diceCounts: DiceCounts;
-  diceBonus: number;
-  diceAdvantage: Advantage;
   diceHidden: boolean;
   diceRollPressTime: number | null;
   changeDiceSet: (diceSet: DiceSet) => void;
@@ -23,8 +23,6 @@ interface DiceControlsState {
   changeDieCount: (id: string, count: number) => void;
   incrementDieCount: (id: string) => void;
   decrementDieCount: (id: string) => void;
-  setDiceAdvantage: (advantage: Advantage) => void;
-  setDiceBonus: (bonus: number) => void;
   toggleDiceHidden: () => void;
   setDiceRollPressTime: (time: number | null) => void;
 }
@@ -39,8 +37,6 @@ export const useDiceControlsStore = create<DiceControlsState>()(
     diceById: initialDiceById,
     defaultDiceCounts: initialDiceCounts,
     diceCounts: initialDiceCounts,
-    diceBonus: 0,
-    diceAdvantage: null,
     diceHidden: false,
     diceRollPressTime: null,
     changeDiceSet(diceSet) {
@@ -78,7 +74,18 @@ export const useDiceControlsStore = create<DiceControlsState>()(
     },
     incrementDieCount(id) {
       set((state) => {
-        if (id in state.diceCounts) {
+        const die = state.diceById[id];
+        if (!(id in state.diceCounts) || !die) {
+          return;
+        }
+        // Dice and cards can't be mixed: picking one clears the other
+        const isCard = die.type === "CARD";
+        for (const otherId of Object.keys(state.diceCounts)) {
+          if ((state.diceById[otherId]?.type === "CARD") !== isCard) {
+            state.diceCounts[otherId] = 0;
+          }
+        }
+        if (canAddDie(die, state.diceCounts, state.diceById)) {
           state.diceCounts[id] += 1;
         }
       });
@@ -88,16 +95,6 @@ export const useDiceControlsStore = create<DiceControlsState>()(
         if (id in state.diceCounts) {
           state.diceCounts[id] -= 1;
         }
-      });
-    },
-    setDiceBonus(bonus) {
-      set((state) => {
-        state.diceBonus = bonus;
-      });
-    },
-    setDiceAdvantage(advantage) {
-      set((state) => {
-        state.diceAdvantage = advantage;
       });
     },
     toggleDiceHidden() {
@@ -129,64 +126,37 @@ function getDiceByIdFromSet(diceSet: DiceSet) {
   return byId;
 }
 
-/** Generate new dice based off of a set of counts, advantage and die */
+/** Generate new dice from the picked counts */
 export function getDiceToRoll(
   counts: DiceCounts,
-  advantage: Advantage,
   diceById: Record<string, Die>
 ) {
   const dice: (Die | Dice)[] = [];
-  const countEntries = Object.entries(counts);
-  for (const [id, count] of countEntries) {
+  for (const [id, count] of Object.entries(counts)) {
     const die = diceById[id];
     if (!die) {
       continue;
     }
     const { style, type } = die;
+    if (type === "CARD") {
+      // Each card is drawn now from what's left in the deck
+      const drawn = getDrawnCards(useCardDeckStore.getState());
+      for (const card of drawCards(count, drawn)) {
+        dice.push({ id: generateDiceId(), style, type, card });
+      }
+      continue;
+    }
     for (let i = 0; i < count; i++) {
-      if (advantage === null) {
-        if (type === "D100") {
-          // Push a d100 and d10 when rolling a d100
-          dice.push({
-            dice: [
-              { id: generateDiceId(), style, type: "D100" },
-              { id: generateDiceId(), style, type: "D10" },
-            ],
-          });
-        } else {
-          dice.push({ id: generateDiceId(), style, type });
-        }
+      if (type === "D100") {
+        // Push a d100 and d10 when rolling a d100
+        dice.push({
+          dice: [
+            { id: generateDiceId(), style, type: "D100" },
+            { id: generateDiceId(), style, type: "D10" },
+          ],
+        });
       } else {
-        // Rolling with advantage or disadvantage
-        const combination = advantage === "ADVANTAGE" ? "HIGHEST" : "LOWEST";
-        if (type === "D100") {
-          // Push 2 d100s and d10s
-          dice.push({
-            dice: [
-              {
-                dice: [
-                  { id: generateDiceId(), style, type: "D100" },
-                  { id: generateDiceId(), style, type: "D10" },
-                ],
-              },
-              {
-                dice: [
-                  { id: generateDiceId(), style, type: "D100" },
-                  { id: generateDiceId(), style, type: "D10" },
-                ],
-              },
-            ],
-            combination,
-          });
-        } else {
-          dice.push({
-            dice: [
-              { id: generateDiceId(), style, type },
-              { id: generateDiceId(), style, type },
-            ],
-            combination,
-          });
-        }
+        dice.push({ id: generateDiceId(), style, type });
       }
     }
   }

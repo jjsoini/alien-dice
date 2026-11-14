@@ -1,109 +1,84 @@
 import { useState } from "react";
 
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import Stack from "@mui/material/Stack";
-import Link from '@mui/material/Link';
-import Menu from "@mui/material/Menu";
-import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
-
-import HistoryIcon from "@mui/icons-material/SavedSearchRounded";
-import NoHistoryIcon from "@mui/icons-material/ManageSearchRounded";
-import { CreatorIcon } from "../icons/CreatorIcon"
-
-import { useDiceRollStore } from "../dice/store";
-import { RecentRoll, useDiceHistoryStore } from "./history";
-import { DicePreview } from "../previews/DicePreview";
+import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import Menu from "@mui/material/Menu";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { getDiceToRoll, useDiceControlsStore } from "./store";
 
+import { CreatorIcon } from "../icons/CreatorIcon";
+
+const PATREON_URL = "https://patreon.com/pulpscape";
+
+/**
+ * The creator's support link, in the desktop sidebar only. The extension runs
+ * in an iframe, so links open in a new tab.
+ */
 export function SupportCreator() {
-  const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-  function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
-    setAnchorEl(event.currentTarget);
-  }
-  function handleClose() {
-    setAnchorEl(null);
-  }
 
   return (
     <>
-    <Tooltip
-    title={"Support me"}
-    placement="right"
-    disableInteractive>
-      <IconButton
-        aria-label="more"
-        id="more-button"
-        aria-controls={open ? "more-menu" : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? "true" : undefined}
-        onClick={handleClick}
-      >
-        <CreatorIcon />
-      </IconButton>
+      <Tooltip title="Support me" placement="right" disableInteractive>
+        <IconButton
+          aria-label="Support me"
+          id="support-button"
+          aria-controls={open ? "support-menu" : undefined}
+          aria-haspopup="true"
+          aria-expanded={open ? "true" : undefined}
+          onClick={(event: React.MouseEvent<HTMLButtonElement>) =>
+            setAnchorEl(event.currentTarget)
+          }
+        >
+          <CreatorIcon />
+        </IconButton>
       </Tooltip>
       <Menu
-        id="more-menu"
+        id="support-menu"
         anchorEl={anchorEl}
         open={open}
-        onClose={handleClose}
-        MenuListProps={{
-          "aria-labelledby": "more-button",
-        }}
-        anchorOrigin={{
-          vertical: "center",
-          horizontal: "right",
-        }}
-        transformOrigin={{
-          vertical: "center",
-          horizontal: "left",
-        }}
+        onClose={() => setAnchorEl(null)}
+        MenuListProps={{ "aria-labelledby": "support-button" }}
+        anchorOrigin={{ vertical: "center", horizontal: "right" }}
+        transformOrigin={{ vertical: "center", horizontal: "left" }}
       >
         <Stack width="240px" px={1} gap={0.5}>
-          <EmptyMessage />
+          <SupportMessage />
         </Stack>
       </Menu>
     </>
   );
 }
 
-function EmptyMessage() {
-  const theme = useTheme();
-
+function SupportMessage() {
   return (
-    <Stack
-      sx={{
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "column",
-        gap: 2,
-        p: 1,
-      }}
-    >
-      <Stack pt={1} pb={0} direction="row" spacing={1}>
-        <CreatorIcon sx={{width: "32px", height: "32px"}}  />
+    <Stack alignItems="center" gap={2} p={1}>
+      <Stack pt={1} direction="row" spacing={1}>
+        <CreatorIcon sx={{ width: "32px", height: "32px" }} />
         <Typography variant="caption" textAlign="left">
-        <b>Hi!</b> I make maps and assets for modern TTRPGs. Check out <Link target="_blank" rel="noopener" color="#FFDD2C" href="https://patreon.com/pulpscape">patreon.com/pulpscape</Link> for more!
-      </Typography>
+          <b>Hi!</b> I make maps and assets for modern TTRPGs. Check out{" "}
+          <Link
+            href={PATREON_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            color="#FFDD2C"
+          >
+            patreon.com/pulpscape
+          </Link>{" "}
+          for more!
+        </Typography>
       </Stack>
-      <Link target="_blank" rel="noopener" href="https://patreon.com/pulpscape">
-      <Box
-        component="img"
-        sx={{
-          borderRadius: "8px",
-          width: "100%"
-        }}
-        src="./thumb.jpg"
-      >
-      </Box>
+      <Link href={PATREON_URL} target="_blank" rel="noopener noreferrer">
+        <Box
+          component="img"
+          src="./thumb.jpg"
+          alt="Pulpscape on Patreon"
+          sx={{ display: "block", borderRadius: "8px", width: "100%" }}
+        />
       </Link>
-      
-
     </Stack>
   );
 }

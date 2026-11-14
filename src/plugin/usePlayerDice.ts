@@ -1,6 +1,7 @@
 import { Player } from "@owlbear-rodeo/sdk";
 import { useEffect, useMemo, useRef } from "react";
 import { getCombinedDiceValue } from "../helpers/getCombinedDiceValue";
+import { getRollSummary } from "../helpers/getRollSummary";
 import { DiceRoll } from "../types/DiceRoll";
 import { DiceThrow } from "../types/DiceThrow";
 import { DiceTransform } from "../types/DiceTransform";
@@ -70,6 +71,15 @@ export function usePlayerDice(player?: Player) {
     }
   }, [diceRoll, finishedRollValues]);
 
+  /** Successes and panic for the result labels */
+  const summary = useMemo(() => {
+    if (diceRoll && finishedRollValues) {
+      return getRollSummary(diceRoll, finishedRollValues);
+    } else {
+      return null;
+    }
+  }, [diceRoll, finishedRollValues]);
+
   const finishedRolling = useMemo(() => {
     if (!rollValues) {
       return false;
@@ -90,6 +100,7 @@ export function usePlayerDice(player?: Player) {
     transformsRef,
     finishedRollTransforms,
     finalValue,
+    summary,
     finishedRollValues,
     finishedRolling,
   };

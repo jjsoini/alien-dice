@@ -6,6 +6,7 @@ import * as mediumDice from "./medium/dice";
 import * as mediumLeather from "./medium/leather";
 import * as mediumWood from "./medium/wood";
 import * as mediumShake from "./medium/shake";
+import * as mediumCard from "./medium/card";
 
 const buffers: Record<WeightClass, Record<PhysicalMaterial, AudioBuffer[]>> = {
   MEDIUM: {
@@ -13,6 +14,7 @@ const buffers: Record<WeightClass, Record<PhysicalMaterial, AudioBuffer[]>> = {
     LEATHER: [],
     WOOD: [],
     SHAKE: [],
+    CARD: [],
   },
 };
 
@@ -26,6 +28,7 @@ const indices: Record<WeightClass, Record<PhysicalMaterial, number>> = {
     LEATHER: 0,
     WOOD: 0,
     SHAKE: 0,
+    CARD: 0,
   },
 };
 
@@ -56,6 +59,7 @@ function loadBuffers() {
   loadBuffer(mediumWood.a3, "MEDIUM", "WOOD", audioLoader);
   loadBuffer(mediumWood.a4, "MEDIUM", "WOOD", audioLoader);
   loadBuffer(mediumShake.a1, "MEDIUM", "SHAKE", audioLoader);
+  loadBuffer(mediumCard.a1, "MEDIUM", "CARD", audioLoader);
 
   window.removeEventListener("click", loadBuffers);
 }

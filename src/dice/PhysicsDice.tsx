@@ -8,7 +8,7 @@ import {
 
 import { Die } from "../types/Die";
 import { getValueFromDiceGroup } from "../helpers/getValueFromDiceGroup";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useAudioListener } from "../audio/AudioListenerProvider";
 import { getNextBuffer } from "../audio/getAudioBuffer";
 import { PhysicalMaterial } from "../types/PhysicalMaterial";
@@ -17,6 +17,18 @@ import { getDieDensity } from "../helpers/getDieDensity";
 import { DiceThrow } from "../types/DiceThrow";
 import { DiceTransform } from "../types/DiceTransform";
 import { DiceCollider } from "../colliders/DiceCollider";
+import { CARD_HALF_DIAGONAL } from "../cards/cardSize";
+
+/** Inner bounds of the tray (see TrayColliders) */
+const TRAY_HALF_WIDTH = 0.46;
+const TRAY_HALF_DEPTH = 0.96;
+
+function clamp(value: number, limit: number) {
+  return Math.min(Math.max(value, -limit), limit);
+}
+
+/** How much of a throw's turn a card keeps, so cards land roughly upright */
+const CARD_TILT = 0.1;
 
 /** Minium linear and angular speed before the dice roll is considered finished */
 const MIN_ROLL_FINISHED_SPEED = 0.005;
@@ -54,12 +66,30 @@ export function PhysicsDice({
   // Convert dice throw into THREE values
   const [position] = useState<Vector3Array>(() => {
     const p = fixedTransform ? fixedTransform.position : dieThrow.position;
+    if (die.type === "CARD" && !fixedTransform) {
+      // Start the card fully inside the tray walls, whatever its angle
+      const margin = CARD_HALF_DIAGONAL + 0.02;
+      return [
+        clamp(p.x, TRAY_HALF_WIDTH - margin),
+        p.y,
+        clamp(p.z, TRAY_HALF_DEPTH - margin),
+      ];
+    }
     return [p.x, p.y, p.z];
   });
+
+  /** Cards fall flat and face up: they only spin around the vertical axis */
+  const isCard = die.type === "CARD";
 
   const [rotation] = useState<Vector3Array>(() => {
     const r = fixedTransform ? fixedTransform.rotation : dieThrow.rotation;
     const quaternion = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+    if (isCard && !fixedTransform) {
+      const euler = new THREE.Euler().setFromQuaternion(quaternion, "YXZ");
+      // Land roughly upright so the number reads the right way up
+      // (euler.y is -π..π, so this is a tilt of up to ±0.3 rad)
+      return [0, euler.y * CARD_TILT, 0];
+    }
     const euler = new THREE.Euler().setFromQuaternion(quaternion);
     return [euler.x, euler.y, euler.z];
   });
@@ -71,7 +101,7 @@ export function PhysicsDice({
 
   const [angularVelocity] = useState<Vector3Array>(() => {
     const v = fixedTransform ? { x: 0, y: 0, z: 0 } : dieThrow.angularVelocity;
-    return [v.x, v.y, v.z];
+    return isCard ? [0, v.y * CARD_TILT, 0] : [v.x, v.y, v.z];
   });
 
   const lockedRef = useRef(false);
@@ -103,7 +133,9 @@ export function PhysicsDice({
           ignorePhysics ||
           (speed < MIN_ROLL_FINISHED_SPEED && validPosition)
         ) {
-          const value = getValueFromDiceGroup(group);
+          // A card's value was drawn when the roll started
+          const value =
+            die.type === "CARD" ? die.card || 0 : getValueFromDiceGroup(group);
           const position = rigidBody.translation();
           const rotation = rigidBody.rotation();
           const transform = {
@@ -120,7 +152,7 @@ export function PhysicsDice({
         }
       }
     },
-    [die.id, lockDice]
+    [die.id, die.type, die.card, lockDice]
   );
 
   const handleFrame = useCallback(() => {
@@ -153,6 +185,10 @@ export function PhysicsDice({
   const lastAudioTimeRef = useRef(0);
   const handleCollision = useCallback(
     ({ rigidBodyObject }: CollisionEnterPayload) => {
+      // Dice sounds don't fit cards
+      if (isCard) {
+        return;
+      }
       if (performance.now() - lastAudioTimeRef.current < AUDIO_COOLDOWN) {
         return;
       }
@@ -192,10 +228,23 @@ export function PhysicsDice({
     <RigidBody
       // Increase gravity on the dice to offset the non-standard dice size.
       // Dice are around 10x larger then they should be to account for
-      // physics errors when shown at proper size.
-      gravityScale={1.7}
+      // physics errors when shown at proper size. Alien's dice are smaller
+      // than the cards and tuned lighter.
+      gravityScale={isCard ? 2 : 1.7}
       density={getDieDensity(die)}
-      friction={0.075}
+      friction={isCard ? 0.6 : 0.075}
+      {...(isCard
+        ? {
+            // No turning at all: cards keep their small starting tilt, so
+            // the numbers stay readable when cards bump into each other
+            enabledRotations: [false, false, false] as [
+              boolean,
+              boolean,
+              boolean,
+            ],
+            ccd: true,
+          }
+        : {})}
       position={position}
       rotation={rotation}
       linearVelocity={linearVelocity}
@@ -206,8 +255,67 @@ export function PhysicsDice({
     >
       <group ref={ref} {...props}>
         <DiceCollider diceType={die.type} />
-        {children}
+        {isCard && !fixedTransform ? <FlipIn>{children}</FlipIn> : children}
       </group>
     </RigidBody>
+  );
+}
+
+/** How long a thrown card takes to turn face up (seconds) */
+const CARD_FLIP_TIME = 0.45;
+
+/** Cards flipped within this time (ms) share one flip sound */
+const FLIP_SOUND_COOLDOWN = 300;
+let lastFlipSoundTime = -Infinity;
+
+/**
+ * Turn a thrown card from face down to face up as it falls.
+ * Only visual: the card's physics body always lies face up.
+ */
+function FlipIn({ children }: { children: React.ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  const timeRef = useRef(0);
+  const { invalidate } = useThree();
+
+  // One flip sound per draw, however many cards are flipped
+  const listener = useAudioListener();
+  useEffect(() => {
+    const group = ref.current;
+    const now = performance.now();
+    if (now - lastFlipSoundTime < FLIP_SOUND_COOLDOWN) {
+      return;
+    }
+    const buffer = getNextBuffer("MEDIUM", "CARD");
+    if (!group || !buffer || !listener) {
+      return;
+    }
+    lastFlipSoundTime = now;
+    const sound = new THREE.PositionalAudio(listener);
+    sound.setBuffer(buffer);
+    sound.setRefDistance(3);
+    sound.setVolume(0.5);
+    sound.onEnded = () => {
+      group.remove(sound);
+    };
+    group.add(sound);
+    sound.play();
+  }, [listener]);
+
+  useFrame((_, delta) => {
+    const group = ref.current;
+    if (!group || timeRef.current >= CARD_FLIP_TIME) {
+      return;
+    }
+    timeRef.current = Math.min(timeRef.current + delta, CARD_FLIP_TIME);
+    const t = timeRef.current / CARD_FLIP_TIME;
+    // Ease out so the card settles as it turns over
+    const eased = 1 - Math.pow(1 - t, 3);
+    group.rotation.z = Math.PI * (1 - eased);
+    invalidate();
+  });
+  return (
+    <group ref={ref} rotation={[0, 0, Math.PI]}>
+      {children}
+    </group>
   );
 }

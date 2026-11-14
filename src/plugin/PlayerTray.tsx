@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   ContactShadows,
   Environment,
@@ -18,7 +17,6 @@ import Tooltip from "@mui/material/Tooltip";
 import HiddenIcon from "@mui/icons-material/VisibilityOffRounded";
 
 import environment from "../environment.hdr";
-import { GradientOverlay } from "../controls/GradientOverlay";
 import { DiceResults } from "../controls/DiceResults";
 import { usePlayerDice } from "./usePlayerDice";
 import { PlayerDiceRoll } from "./PlayerDiceRoll";
@@ -26,21 +24,37 @@ import { AudioListenerProvider } from "../audio/AudioListenerProvider";
 import { Tray } from "../tray/Tray";
 import { useDebugStore } from "../debug/store";
 import { TraySuspense } from "../tray/TraySuspense";
+import { getPublicHand, useCardDeckStore } from "../cards/cardDeck";
+import { CardStack } from "../controls/DrawnCards";
+import { TrayCoverCamera } from "../tray/TrayCamera";
+import {
+  CORNER_INSET,
+  NARROW_TRAY_HEIGHT,
+  NARROW_TRAY_WIDTH,
+  cornerRowOffset,
+} from "../helpers/narrowTray";
 
 export function PlayerTray({
   player,
+  narrow = false,
 }: {
   player?: Player; // Make player optional to allow for preloading of the tray
+  /** Phone layout: as big as fits, with the back button in its top left */
+  narrow?: boolean;
 }) {
   const allowOrbit = useDebugStore((state) => state.allowOrbit);
+  /** The player's initiative cards from the current shuffle */
+  const hand = useCardDeckStore((state) =>
+    player ? state.hands[player.id] : undefined
+  );
 
   return (
     <Box component="div" position="relative" display="flex">
       <Box
         component="div"
         borderRadius={0.5}
-        height="100vh"
-        width="calc(100vh / 2)"
+        height={narrow ? NARROW_TRAY_HEIGHT : "100vh"}
+        width={narrow ? NARROW_TRAY_WIDTH : "calc(100vh / 2)"}
         overflow="hidden"
         position="relative"
       >
@@ -59,46 +73,90 @@ export function PlayerTray({
               />
               <Tray />
               <PlayerDiceRoll player={player} />
-              <PerspectiveCamera
-                makeDefault
-                fov={28}
-                position={[0, 4.3, 0]}
-                rotation={[-Math.PI / 2, 0, 0]}
-              />
+              {narrow ? (
+                <TrayCoverCamera />
+              ) : (
+                <PerspectiveCamera
+                  makeDefault
+                  fov={28}
+                  position={[0, 4.3, 0]}
+                  rotation={[-Math.PI / 2, 0, 0]}
+                />
+              )}
               {allowOrbit && <OrbitControls />}
             </AudioListenerProvider>
           </Canvas>
         </TraySuspense>
       </Box>
-      <PlayerTrayResults player={player} />
+      <PlayerTrayResults player={player} narrow={narrow} />
       <Box
         sx={{
           position: "absolute",
-          bottom: 0,
+          top: 0,
           left: 0,
           width: "100%",
           pointerEvents: "none",
-          padding: 3,
+          padding: narrow ? `${CORNER_INSET}px` : 3,
+          // Keep clear of the back button and cards on the left (centred,
+          // so the same on both sides)
+          px: hand && hand.cards.length > 0 ? 15 : 9,
         }}
         component="div"
       >
         <Typography
           variant="h6"
-          color="rgba(255, 255, 255, 0.7)"
+          color="rgba(255, 255, 255, 0.85)"
           textAlign="center"
+          noWrap
+          sx={{ textShadow: "0 1px 3px rgba(0, 0, 0, 0.6)" }}
         >
           {player?.name}
         </Typography>
       </Box>
+      {hand && hand.cards.length > 0 && (
+        <Fade in>
+          <Box
+            component="div"
+            // Top left, just right of the back button
+            sx={
+              narrow
+                ? {
+                    position: "absolute",
+                    top: CORNER_INSET,
+                    left: cornerRowOffset(1),
+                  }
+                : { position: "absolute", top: 16, left: 60 }
+            }
+          >
+            <Tooltip
+              title={getPublicHand(hand).label}
+              placement="right"
+              disableInteractive
+            >
+              <Box component="div">
+                <CardStack
+                  cards={getPublicHand(hand).cards}
+                  width={48}
+                  isFaceDown={getPublicHand(hand).isHidden}
+                />
+              </Box>
+            </Tooltip>
+          </Box>
+        </Fade>
+      )}
     </Box>
   );
 }
 
-function PlayerTrayResults({ player }: { player?: Player }) {
+function PlayerTrayResults({
+  player,
+  narrow,
+}: {
+  player?: Player;
+  narrow: boolean;
+}) {
   const { diceRoll, finalValue, finishedRollValues, finishedRolling } =
     usePlayerDice(player);
-
-  const [resultsExpanded, setResultsExpanded] = useState(false);
   return (
     <>
       {diceRoll?.hidden && (
@@ -111,18 +169,14 @@ function PlayerTrayResults({ player }: { player?: Player }) {
       {finalValue !== null && (
         <>
           <Fade in>
-            <GradientOverlay top height={resultsExpanded ? 500 : undefined} />
-          </Fade>
-          <GradientOverlay />
-          <Fade in>
             <Box
               sx={{
                 position: "absolute",
-                top: 0,
+                bottom: 0,
                 left: 0,
                 width: "100%",
                 pointerEvents: "none",
-                padding: 3,
+                padding: narrow ? `${CORNER_INSET}px` : 3,
               }}
               component="div"
             >
@@ -139,8 +193,6 @@ function PlayerTrayResults({ player }: { player?: Player }) {
                     <DiceResults
                       diceRoll={diceRoll}
                       rollValues={finishedRollValues}
-                      expanded={resultsExpanded}
-                      onExpand={setResultsExpanded}
                     />
                   )}
               </Stack>

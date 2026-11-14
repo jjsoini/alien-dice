@@ -1,66 +1,28 @@
 import { isPlainObject } from "is-plain-object";
 
-import { Die } from "./Die";
+import { Die, isDie } from "./Die";
 
 /**
- * The roll of a set of dice.
- * @example <caption>2d6 with a +6 bonus to the entire roll</caption>
+ * The roll of a set of dice, which can nest.
+ * @example <caption>2d6</caption>
  * {
  *  dice: [
  *    {id: "123", style: "BASE", type: "D6"},
  *    {id: "234", style: "BASE", type: "D6"},
  *  ],
- *  bonus: 6
  * }
  *
- * @example <caption>1d6+3 + 1d8</caption>
+ * @example <caption>A D100 rolled with a D10 for the single digit</caption>
  * {
  *  dice: [
- *    {
- *      dice: [{id: "123", style: "BASE", type: "D6"}],
- *      bonus: 3
- *    },
- *    {id: "234", style: "BASE", type: "D8"}]
- *  ],
- * }
- *
- * @example <caption>A D20 rolled at advantage with a bonus +6 to the roll</caption>
- * {
- *  dice: [
- *    {id: "123", style: "BASE", type: "D20"},
- *    {id: "234", style: "BASE", type: "D20"}
- *  ],
- *  combination: "HIGHEST",
- *  bonus: 6
- * }
- *
- * @example <caption>A single D100 rolled with an added D10</caption>
- * {
- *  dice: [
- *    {id: "123", style: "BASE", type: "D100"},
- *    {id: "234", style: "BASE", type: "D10"}
- *  ],
- * }
- *
- * @example <caption>A D100 and D10 rolled at advantage</caption>
- * {
- *  dice: [
- *    {
- *       dice: [
- *        {id: "123", style: "BASE", type: "D100"},
- *        {id: "234", style: "BASE", type: "D10"}
- *      ],
- *    },
  *    {
  *      dice: [
- *        {id: "345", style: "BASE", type: "D100"},
- *        {id: "456", style: "BASE", type: "D10"}
+ *        {id: "123", style: "STRESS", type: "D100"},
+ *        {id: "234", style: "STRESS", type: "D10"}
  *      ],
  *    },
  *  ],
- *  combination: "HIGHEST",
  * }
- *
  */
 export interface Dice {
   dice: (Die | Dice)[];
@@ -68,9 +30,37 @@ export interface Dice {
    * How to combine the dice for this roll (defaults to `SUM` if undefined)
    */
   combination?: "HIGHEST" | "LOWEST" | "SUM" | "NONE";
-  bonus?: number;
 }
 
 export function isDice(value: any): value is Dice {
   return isPlainObject(value) && Array.isArray(value.dice);
+}
+
+/** Is this a roll of playing cards */
+export function isCardRoll(dice: Dice): boolean {
+  return dice.dice.some((dieOrDice) =>
+    isDie(dieOrDice) ? dieOrDice.type === "CARD" : isCardRoll(dieOrDice)
+  );
+}
+
+/** The cards of a roll with their drawn values, or null if it has no cards */
+export function getRollCards(
+  dice: Dice,
+  values: Record<string, number | null>
+): number[] | null {
+  const cards: number[] = [];
+  function collect(dice: Dice) {
+    for (const dieOrDice of dice.dice) {
+      if (isDie(dieOrDice)) {
+        const value = values[dieOrDice.id];
+        if (dieOrDice.type === "CARD" && typeof value === "number") {
+          cards.push(value);
+        }
+      } else if (isDice(dieOrDice)) {
+        collect(dieOrDice);
+      }
+    }
+  }
+  collect(dice);
+  return cards.length > 0 ? cards : null;
 }

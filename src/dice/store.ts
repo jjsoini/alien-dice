@@ -3,7 +3,7 @@ import { immer } from "zustand/middleware/immer";
 import { WritableDraft } from "immer/dist/types/types-external";
 
 import { DiceRoll } from "../types/DiceRoll";
-import { isDie } from "../types/Die";
+import { Die, isDie } from "../types/Die";
 import { isDice } from "../types/Dice";
 import { getDieFromDice } from "../helpers/getDieFromDice";
 import { DiceTransform } from "../types/DiceTransform";
@@ -29,11 +29,18 @@ interface DiceRollState {
   rollThrows: Record<string, DiceThrow>;
   startRoll: (roll: DiceRoll, speedMultiplier?: number) => void;
   clearRoll: (ids?: string) => void;
+  /** Reroll select ids of dice or reroll all dice by passing `undefined` */
   reroll: (ids?: string[], manualThrows?: Record<string, DiceThrow>) => void;
-  push: (ids?: string[], manualThrows?: Record<string, DiceThrow>) => void;
-  addDie: () => void;
+  /** Move a finished die on the tray without changing its result */
+  moveDie: (id: string, x: number, z: number) => void;
+  /** Roll one more die into the current roll (a d100 adds its d10 too) */
+  addDie: (die: Pick<Die, "style" | "type">) => void;
+  /**
+   * Push the roll: add a stress die and reroll the given dice (the ones that
+   * aren't 6s). A roll can be pushed any number of times.
+   */
+  push: (ids: string[]) => void;
   finishDieRoll: (id: string, number: number, transform: DiceTransform) => void;
-  addStress: () => void;
 }
 
 export const useDiceRollStore = create<DiceRollState>()(
@@ -53,54 +60,23 @@ export const useDiceRollStore = create<DiceRollState>()(
         for (const die of dice) {
           state.rollValues[die.id] = null;
           state.rollTransforms[die.id] = null;
-          let speed:number = 1;
-          if (speedMultiplier) {
-            speed = speedMultiplier;
-          }
-          state.rollThrows[die.id] = getRandomDiceThrow(Math.max(1.7,speed));
+          state.rollThrows[die.id] = getRandomDiceThrow(speedMultiplier);
         }
       }),
-    clearRoll: (ids) =>
+    clearRoll: () =>
       set((state) => {
-        
-        if(ids){
-          if(true){
-            //deleting dice.. create new draft that copies all the dice rolls and transforms except the one with the id.
-            let newRoll: WritableDraft<DiceRoll> = {dice:[], hidden: state.roll?.hidden};
-            let newValues: WritableDraft<Record<string, number | null>> = {};
-            let newTransforms: WritableDraft<Record<string, DiceTransform | null>> = {};
-            let newThrows: WritableDraft<Record<string, DiceThrow>> = {};
-            if (state.roll !== null) {
-              for(const die of state.roll.dice){
-                if(isDie(die)){
-                  if(die.id !== ids){
-                    newRoll.dice.push(die);
-                    newValues[die.id] = state.rollValues[die.id];
-                    newTransforms[die.id] = state.rollTransforms[die.id];
-                    newThrows[die.id] = state.rollThrows[die.id];
-                  }
-                }
-              }
-            }
-            state.roll = null;
-            state.rollValues = {};
-            state.rollTransforms = {};
-            state.rollThrows = {};
-            state.roll = newRoll;
-            state.rollValues = newValues;
-            state.rollTransforms = newTransforms;
-            state.rollThrows = newThrows;
-          }
-        } else {
-          state.roll = null;
-          state.rollValues = {};
-          state.rollTransforms = {};
-          state.rollThrows = {};     
-        }
+        state.roll = null;
+        state.rollValues = {};
+        state.rollTransforms = {};
+        state.rollThrows = {};
       }),
     reroll: (ids, manualThrows) => {
       set((state) => {
         if (state.roll) {
+          if (!ids) {
+            // Rerolling every die is a fresh roll, not a push
+            state.roll.pushes = 0;
+          }
           rerollDraft(
             state.roll,
             ids,
@@ -112,25 +88,54 @@ export const useDiceRollStore = create<DiceRollState>()(
         }
       });
     },
-    push: (ids, manualThrows) => {
+    moveDie: (id, x, z) => {
       set((state) => {
-        if (state.roll) {
-          pushDraft(
-            state.roll,
-            ids,
-            manualThrows,
-            state.rollValues,
-            state.rollTransforms,
-            state.rollThrows
-          );
+        const transform = state.rollTransforms[id];
+        if (transform) {
+          transform.position.x = x;
+          transform.position.z = z;
         }
       });
     },
-    addDie: () => {
+    addDie: ({ style, type }) => {
+      set((state) => {
+        if (!state.roll) {
+          return;
+        }
+        const newDice: Die[] =
+          type === "D100"
+            ? [
+                { id: generateDiceId(), style, type: "D100" },
+                { id: generateDiceId(), style, type: "D10" },
+              ]
+            : [{ id: generateDiceId(), style, type }];
+        state.roll.dice.push(
+          newDice.length === 1 ? newDice[0] : { dice: newDice }
+        );
+        for (const die of newDice) {
+          state.rollValues[die.id] = null;
+          state.rollTransforms[die.id] = null;
+          state.rollThrows[die.id] = getRandomDiceThrow();
+        }
+      });
+    },
+    push: (ids) => {
       set((state) => {
         if (state.roll) {
-          addDieDraft(
+          state.roll.pushes = (state.roll.pushes ?? 0) + 1;
+          const stressDie: Die = {
+            id: generateDiceId(),
+            style: "STRESS",
+            type: "D6",
+          };
+          state.roll.dice.push(stressDie);
+          state.rollValues[stressDie.id] = null;
+          state.rollTransforms[stressDie.id] = null;
+          state.rollThrows[stressDie.id] = getRandomDiceThrow();
+          rerollDraft(
             state.roll,
+            ids,
+            undefined,
             state.rollValues,
             state.rollTransforms,
             state.rollThrows
@@ -142,18 +147,6 @@ export const useDiceRollStore = create<DiceRollState>()(
       set((state) => {
         state.rollValues[id] = number;
         state.rollTransforms[id] = transform;
-      });
-    },
-    addStress: () => {
-      set((state) => {
-        if (state.roll) {
-          addStressDraft(
-            state.roll,
-            state.rollValues,
-            state.rollTransforms,
-            state.rollThrows
-          );
-        }
       });
     },
   }))
@@ -168,53 +161,6 @@ function rerollDraft(
   rollTransforms: WritableDraft<Record<string, DiceTransform | null>>,
   rollThrows: WritableDraft<Record<string, DiceThrow>>
 ) {
-
-  for (let dieOrDice of diceRoll.dice) {
-    if (isDie(dieOrDice)) {
-      if (!ids || ids.includes(dieOrDice.id)) {
-        delete rollValues[dieOrDice.id];
-        delete rollTransforms[dieOrDice.id];
-        delete rollThrows[dieOrDice.id];
-        const manualThrow = manualThrows?.[dieOrDice.id];
-        const id = generateDiceId();
-        dieOrDice.id = id;
-        rollValues[id] = null;
-        rollTransforms[id] = null;
-        if (manualThrow) {
-          rollThrows[id] = manualThrow;
-        } else {
-          rollThrows[id] = getRandomDiceThrow(1.7);
-        }
-      }
-    } else if (isDice(dieOrDice)) {
-      rerollDraft(
-        dieOrDice,
-        ids,
-        manualThrows,
-        rollValues,
-        rollTransforms,
-        rollThrows
-      );
-    }
-  }
-}
-
-/** Recursively update the ids of a draft to reroll dice */
-function pushDraft(
-  diceRoll: WritableDraft<DiceRoll>,
-  ids: string[] | undefined,
-  manualThrows: Record<string, DiceThrow> | undefined,
-  rollValues: WritableDraft<Record<string, number | null>>,
-  rollTransforms: WritableDraft<Record<string, DiceTransform | null>>,
-  rollThrows: WritableDraft<Record<string, DiceThrow>>
-) {
-
-    const newId = generateDiceId();
-    diceRoll.dice.push({id:newId, style:"STRESS", type:"D6"});
-    rollValues[newId] = null;
-    rollTransforms[newId] = null;
-    rollThrows[newId] = getRandomDiceThrow(2);
-
   for (let dieOrDice of diceRoll.dice) {
     if (isDie(dieOrDice)) {
       if (!ids || ids.includes(dieOrDice.id)) {
@@ -233,7 +179,7 @@ function pushDraft(
         }
       }
     } else if (isDice(dieOrDice)) {
-      pushDraft(
+      rerollDraft(
         dieOrDice,
         ids,
         manualThrows,
@@ -243,36 +189,4 @@ function pushDraft(
       );
     }
   }
-}
-
-function addDieDraft(
-  diceRoll: WritableDraft<DiceRoll>,
-  rollValues: WritableDraft<Record<string, number | null>>,
-  rollTransforms: WritableDraft<Record<string, DiceTransform | null>>,
-  rollThrows: WritableDraft<Record<string, DiceThrow>>,
-  isStress?:boolean
-) {
-
-    const newId = generateDiceId();
-    diceRoll.dice.push({id:newId, style:"BASE", type:"D6"});
-    rollValues[newId] = null;
-    rollTransforms[newId] = null;
-    rollThrows[newId] = getRandomDiceThrow(2);
-
-}
-
-function addStressDraft(
-  diceRoll: WritableDraft<DiceRoll>,
-  rollValues: WritableDraft<Record<string, number | null>>,
-  rollTransforms: WritableDraft<Record<string, DiceTransform | null>>,
-  rollThrows: WritableDraft<Record<string, DiceThrow>>,
-  isStress?:boolean
-) {
-
-    const newId = generateDiceId();
-    diceRoll.dice.push({id:newId, style:"STRESS", type:"D6"});
-    rollValues[newId] = null;
-    rollTransforms[newId] = null;
-    rollThrows[newId] = getRandomDiceThrow(2);
-
 }

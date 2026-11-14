@@ -1,41 +1,26 @@
-import { Dice, isDice } from "../types/Dice";
-import { isDie } from "../types/Die";
+import { Dice } from "../types/Dice";
+import { getAllDie, hasPanic } from "./getRollSummary";
 
 /**
- * Get dice that can be pushed
- * @param dice
+ * The dice a push rerolls: every base and stress die that isn't a 6.
+ * A roll with a facehugger (a 1 on a stress die) can't be pushed, so this
+ * returns null for it.
  * @param values A mapping of Die ID to their rolled value
- * @returns
  */
 export function getDiceToPush(
-    dice: Dice,
-    values: Record<string, number>
-  ): string[] | undefined {
-
-    let diceToPush: string[] = [];
-
-    for (const dieOrDice of dice.dice) {
-      if (isDie(dieOrDice)) {
-        const value = values[dieOrDice.id];
-        if (value !== undefined) {
-            if (dieOrDice.style === "STRESS" && dieOrDice.type === "D6" && value === 1) {
-              return undefined;
-            }
-            else if (dieOrDice.style === "BASE" && value < 6 && dieOrDice.type === "D6") {
-              diceToPush.push(dieOrDice.id);
-            }
-            else if (dieOrDice.style === "STRESS" && dieOrDice.type === "D6" && value < 6) {
-                diceToPush.push(dieOrDice.id);
-            }
-        }
-      } else if (isDice(dieOrDice)) {
-        const ids = getDiceToPush(dieOrDice, values);
-        if (ids != null) {
-            diceToPush = diceToPush.concat(ids);
-        }  
-      }
-    }
-  return diceToPush;
-
+  dice: Dice,
+  values: Record<string, number>
+): string[] | null {
+  if (hasPanic(dice, values)) {
+    return null;
   }
-  
+  return getAllDie(dice)
+    .filter(
+      (die) =>
+        die.type === "D6" &&
+        (die.style === "BASE" || die.style === "STRESS") &&
+        values[die.id] !== undefined &&
+        values[die.id] < 6
+    )
+    .map((die) => die.id);
+}
