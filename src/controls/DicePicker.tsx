@@ -8,7 +8,7 @@ import {
   TRAY_PANIC_COLOR,
   LINE_WIDTH,
 } from "../helpers/accent";
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useRef } from "react";
 import Badge from "@mui/material/Badge";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -233,14 +233,30 @@ function PanelButton({
   /** Tapping the count badge removes a die from the pool */
   onRemove?: () => void;
 }) {
-  // The image fills the whole round button, which the grid sizes
+  // A tap that just removed a die: taps on the square right after it are
+  // ignored, so tapping past the last die (when the badge disappears) or
+  // slightly off the badge doesn't add one back
+  const lastRemove = useRef(0);
+  function handleRemove(event: React.MouseEvent) {
+    event.stopPropagation();
+    if (onRemove) {
+      lastRemove.current = performance.now();
+      onRemove();
+    }
+  }
+  function handleClick() {
+    if (performance.now() - lastRemove.current > REMOVE_GUARD_MS) {
+      onClick();
+    }
+  }
+
   return (
     <Tooltip title={reason || ""} placement="top" disableInteractive>
       <Badge
         badgeContent={count}
         slotProps={{
           badge: {
-            onClick: onRemove,
+            onClick: onRemove ? handleRemove : undefined,
             role: onRemove ? "button" : undefined,
             "aria-label": onRemove
               ? die.type === "CARD"
@@ -266,6 +282,14 @@ function PanelButton({
             px: 0.75,
             fontSize: "0.875rem",
             cursor: onRemove ? "pointer" : "default",
+            // Fast taps count as taps, not a double tap to zoom
+            touchAction: "manipulation",
+            userSelect: "none",
+            WebkitTapHighlightColor: "transparent",
+            // A bigger invisible area around the badge to tap
+            "&::after": onRemove
+              ? { content: '""', position: "absolute", inset: -12 }
+              : {},
             // The yellow stress badge on the picked stress die's yellow
             // square (light mode) gets a black outline
             boxShadow: (theme: Theme) =>
@@ -278,10 +302,11 @@ function PanelButton({
         }}
       >
         <ButtonBase
-          onClick={onClick}
+          onClick={handleClick}
           disabled={disabled}
           aria-label={`${die.style} ${die.type}`}
           sx={{
+            touchAction: "manipulation",
             // The whole grid cell: square, or flatter on short screens
             width: "100%",
             height: "100%",
@@ -352,3 +377,9 @@ function getGridLineColor(theme: Theme) {
     ? alpha(ACCENT, 0.1)
     : alpha(getAccentForegroundColor(theme), 0.08);
 }
+
+/**
+ * After removing a die with a count badge, taps on the square are ignored
+ * for this long, so a tap past the last die doesn't add one back
+ */
+const REMOVE_GUARD_MS = 400;
