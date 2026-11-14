@@ -149,7 +149,7 @@ export function PlayerAvatar({
       </Badge>
       <Typography
         variant="caption"
-        color="rgba(255, 255, 255, 0.7)"
+        color="text.secondary"
         textAlign="center"
         // As wide as the avatar or cards above, without widening them
         width={large ? 0 : "40px"}

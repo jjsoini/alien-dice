@@ -30,6 +30,9 @@ const PreviewImage = styled("img", {
 })<PreviewImageProps>(({ size }) => ({
   width: PREVIEW_SIZES[size ?? "large"],
   height: PREVIEW_SIZES[size ?? "large"],
+  // Lifts the dark base dice off a dark background and both dice off a
+  // light one
+  filter: "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45))",
 }));
 
 type DiePreviewProps = {

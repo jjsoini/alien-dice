@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Slide from "@mui/material/Slide";
 import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import Paper from "@mui/material/Paper";
 import ButtonBase from "@mui/material/ButtonBase";
 
@@ -116,10 +116,10 @@ export function PopoverTray({
               height: `${size.trayHeight + NAME_HEIGHT}px`,
               borderRadius: 2,
               overflow: "hidden",
-              backgroundColor:
-                theme.palette.mode === "dark"
-                  ? "rgba(34, 38, 57, 0.8)"
-                  : "rgba(255, 255, 255, 0.4)",
+              backgroundColor: alpha(
+                theme.palette.background.default,
+                theme.palette.mode === "dark" ? 0.8 : 0.4
+              ),
             }}
           >
             <Box

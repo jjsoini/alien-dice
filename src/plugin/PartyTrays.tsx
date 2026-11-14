@@ -5,7 +5,7 @@ import Dialog from "@mui/material/Dialog";
 import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 
 import CloseIcon from "@mui/icons-material/ChevronLeftRounded";
 
@@ -127,10 +127,7 @@ export function PartyTrays({
         hideBackdrop
         PaperProps={{
           sx: {
-            bgcolor:
-              theme.palette.mode === "dark"
-                ? "rgba(34, 38, 57, 0.9)"
-                : "rgba(241, 243, 249, 0.9)",
+            bgcolor: alpha(theme.palette.background.default, 0.9),
           },
         }}
         // Keep mounted to allow the canvas to be ready

@@ -9,6 +9,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { CreatorIcon } from "../icons/CreatorIcon";
+import { getAccentForegroundColor } from "../helpers/accent";
 
 const PATREON_URL = "https://patreon.com/pulpscape";
 
@@ -64,7 +65,7 @@ function SupportMessage() {
             href={PATREON_URL}
             target="_blank"
             rel="noopener noreferrer"
-            color="#FFDD2C"
+            color={getAccentForegroundColor}
           >
             patreon.com/pulpscape
           </Link>{" "}

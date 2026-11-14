@@ -6,7 +6,12 @@ import Fade from "@mui/material/Fade";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
-import { useTheme } from "@mui/material/styles";
+import { alpha, darken, useTheme } from "@mui/material/styles";
+import {
+  getAccentColor,
+  getAccentForegroundColor,
+  getAccentTextColor,
+} from "../helpers/accent";
 
 import DiceIcon from "@mui/icons-material/CasinoRounded";
 import ClearIcon from "@mui/icons-material/CloseRounded";
@@ -83,10 +88,8 @@ export function DicePanel({
           position: "absolute",
           inset: 0,
           zIndex: 2,
-          bgcolor:
-            theme.palette.mode === "dark"
-              ? "rgba(34, 38, 57, 0.97)"
-              : "rgba(241, 243, 249, 0.97)",
+          // The panel colour, letting the tray show faintly through
+          bgcolor: alpha(theme.palette.background.default, 0.97),
           px: `${CORNER_INSET}px`,
           // Below the buttons along the tray's top edge
           pt: trayTop(CORNER_INSET + CORNER_BUTTON + 16),
@@ -146,7 +149,7 @@ export function DicePanel({
               "&::-webkit-scrollbar": { display: "none" },
               // Divider above the players, gone with the strip when empty
               borderTop: 1,
-              borderColor: "divider",
+              borderColor: getAccentForegroundColor(theme),
               "&:empty": { display: "none" },
               "& > :first-of-type": { ml: "auto" },
               "& > :last-of-type": { mr: "auto" },
@@ -243,10 +246,12 @@ export function DicePanelToggle({
           top: trayTop(),
           left: traySide(),
           zIndex: 3,
-          color: "white",
-          bgcolor: open ? theme.palette.primary.main : "rgba(0, 0, 0, 0.45)",
+          color: open ? getAccentTextColor(theme) : "white",
+          bgcolor: open ? getAccentColor(theme) : "rgba(0, 0, 0, 0.45)",
           "&:hover": {
-            bgcolor: open ? theme.palette.primary.dark : "rgba(0, 0, 0, 0.6)",
+            bgcolor: open
+              ? darken(getAccentColor(theme), 0.15)
+              : "rgba(0, 0, 0, 0.6)",
           },
         }}
       >
@@ -304,7 +309,11 @@ function RollResultRow({ onRoll }: { onRoll: () => void }) {
       </Box>
       <Stack alignItems="center" minWidth={0} flexGrow={1}>
         {finishedValues && (
-          <DiceResults diceRoll={roll} rollValues={finishedValues} />
+          <DiceResults
+            diceRoll={roll}
+            rollValues={finishedValues}
+            onTray={false}
+          />
         )}
       </Stack>
       {/* Balances the reroll space so the result stays centred */}

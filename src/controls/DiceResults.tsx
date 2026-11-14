@@ -3,20 +3,29 @@ import { useMemo } from "react";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import Fade from "@mui/material/Fade";
+import { useTheme } from "@mui/material/styles";
 
 import { DiceRoll } from "../types/DiceRoll";
 import { getRollSummary, RollSummary } from "../helpers/getRollSummary";
 import { useResultDelay } from "../helpers/useResultDelay";
 import { FacehuggerIcon, SuccessIcon } from "../icons/ResultIcons";
 import { formatCards } from "../cards/cards";
+import { getPanicColor } from "../helpers/accent";
 
-/** Successes, and PANIC when a stress die shows a facehugger */
+/**
+ * Successes, and PANIC when a stress die shows a facehugger. The successes
+ * take the text colour, the panic is stress die yellow (green on light
+ * backgrounds, see `getPanicColor`).
+ */
 export function RollSummaryLabel({
   summary,
   iconSize,
   stacked,
+  onTray,
 }: {
   summary: RollSummary;
+  /** Shown over the (always dark) tray */
+  onTray?: boolean;
   iconSize?: string;
   /**
    * One item per line and the panic as just its icon, for narrow places
@@ -24,6 +33,7 @@ export function RollSummaryLabel({
    */
   stacked?: boolean;
 }) {
+  const theme = useTheme();
   if (summary.cards) {
     return <>{formatCards(summary.cards)}</>;
   }
@@ -38,8 +48,8 @@ export function RollSummaryLabel({
       columnGap="0.4em"
     >
       <Stack component="span" direction="row" alignItems="center" gap="0.15em">
-        {summary.value}
         <SuccessIcon size={iconSize} />
+        {summary.value}
       </Stack>
       {summary.panic && (
         <Stack
@@ -47,6 +57,7 @@ export function RollSummaryLabel({
           direction="row"
           alignItems="center"
           gap="0.2em"
+          color={getPanicColor(theme, onTray)}
         >
           <FacehuggerIcon size={iconSize} />
           {!stacked && <span>PANIC</span>}
@@ -59,9 +70,15 @@ export function RollSummaryLabel({
 export function DiceResults({
   diceRoll,
   rollValues,
+  onTray = true,
 }: {
   diceRoll: DiceRoll;
   rollValues: Record<string, number>;
+  /**
+   * Over the tray (white text), or false in the phone dice panel, which
+   * has the theme's background
+   */
+  onTray?: boolean;
 }) {
   const summary = useMemo(
     () => getRollSummary(diceRoll, rollValues),
@@ -78,14 +95,12 @@ export function DiceResults({
       <Typography
         variant="h5"
         component="div"
-        color={RESULT_COLOR}
+        color={onTray ? "white" : "text.primary"}
         sx={{ px: 1.5, py: 0.5, lineHeight: "32px" }}
       >
-        <RollSummaryLabel summary={summary} iconSize="0.9em" />
+        <RollSummaryLabel summary={summary} iconSize="0.9em" onTray={onTray} />
       </Typography>
     </Fade>
   );
 }
 
-/** Stress die yellow */
-const RESULT_COLOR = "#FFE500";

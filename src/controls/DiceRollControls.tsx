@@ -5,7 +5,8 @@ import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Fade from "@mui/material/Fade";
-import { useTheme, keyframes } from "@mui/material/styles";
+import { darken, lighten, useTheme, keyframes } from "@mui/material/styles";
+import { getAccentColor, getAccentTextColor } from "../helpers/accent";
 import Button from "@mui/material/Button";
 import ButtonBase from "@mui/material/ButtonBase";
 
@@ -139,6 +140,8 @@ function DicePickedControls() {
   );
 
   const theme = useTheme();
+  const accent = getAccentColor(theme);
+  const accentText = getAccentTextColor(theme);
 
   return (
     <>
@@ -158,18 +161,12 @@ function DicePickedControls() {
           },
           ":hover #dice-roll-button": hasDice
             ? {
-                color: theme.palette.primary.contrastText,
-                // Room for the "(hidden)" suffix
-                width: hidden ? "160px" : "100px",
-                "& span": {
-                  transform: "translateX(0)",
-                },
-                backgroundColor: theme.palette.primary.main,
+                backgroundColor: lighten(accent, 0.12),
               }
             : {},
           ":active #dice-roll-button": hasDice
             ? {
-                backgroundColor: theme.palette.primary.dark,
+                backgroundColor: darken(accent, 0.15),
               }
             : {},
         }}
@@ -197,25 +194,18 @@ function DicePickedControls() {
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              color: hasDice ? "transparent" : "transparent !important",
-              "& span": {
-                transform: "translate(-23px)",
-                color: theme.palette.primary.contrastText,
-                transition: theme.transitions.create("transform"),
-              },
-              transition: theme.transitions.create([
-                "width",
-                "color",
-                "background-color",
-              ]),
-              minWidth: 0,
-              width: "36px",
-              overflow: "hidden",
+              transition: theme.transitions.create("background-color"),
+              backgroundColor: accent,
+              color: accentText,
+              "&:hover": { backgroundColor: accent },
               whiteSpace: "nowrap",
+              // As the Roll button in the phone dice panel
               borderRadius: "20px",
+              height: 40,
             }}
             endIcon={<RollIcon />}
             variant="contained"
+            size="large"
             disabled={!hasDice}
             id="dice-roll-button"
             // @ts-ignore

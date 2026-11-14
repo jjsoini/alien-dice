@@ -158,17 +158,11 @@ function RecentRollChip({
   onRoll: () => void;
   onDelete: () => void;
 }) {
-  // One entry per die rolled, e.g. (d6)(d6)(stress d6)
-  const rolledDice: { key: string; die: RecentRoll["diceById"][string] }[] = [];
-  for (const [id, count] of Object.entries(recentRoll.counts)) {
+  // How many of each die were rolled, e.g. 4(base d6) 3(stress d6)
+  const rolledDice = Object.entries(recentRoll.counts).flatMap(([id, count]) => {
     const die = recentRoll.diceById[id];
-    if (!die) {
-      continue;
-    }
-    for (let i = 0; i < count; i++) {
-      rolledDice.push({ key: `${id}-${i}`, die });
-    }
-  }
+    return die && count > 0 ? [{ id, count, die }] : [];
+  });
 
   return (
     <Chip
@@ -195,14 +189,23 @@ function RecentRollChip({
           pr={3}
           py={0.25}
         >
-          {rolledDice.map(({ key, die }) => (
-            <Box key={key} component="span" display="flex" mx="-4px">
+          {rolledDice.map(({ id, count, die }) => (
+            <Typography
+              key={id}
+              component="span"
+              variant="body2"
+              fontWeight="bold"
+              display="flex"
+              alignItems="center"
+              mr={0.5}
+            >
+              {count}
               <DicePreview
                 diceStyle={die.style}
                 diceType={die.type}
                 size="small"
               />
-            </Box>
+            </Typography>
           ))}
           {recentRoll.result &&
             (recentRoll.result.cards || recentRoll.result.value !== null) && (
@@ -210,10 +213,10 @@ function RecentRollChip({
                 component="span"
                 variant="body2"
                 fontWeight="bold"
-                ml={0.5}
                 whiteSpace="nowrap"
                 display="flex"
                 alignItems="center"
+                gap={0.5}
               >
                 =
                 <RollSummaryLabel

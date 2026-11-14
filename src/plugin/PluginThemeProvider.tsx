@@ -3,6 +3,25 @@ import ThemeProvider from "@mui/material/styles/ThemeProvider";
 import OBR, { Theme } from "@owlbear-rodeo/sdk";
 import { useEffect, useState } from "react";
 
+import { ACCENT, ACCENT_TEXT } from "../helpers/accent";
+
+/** Alien Dice's own panel colours, in place of OBR's */
+const PANEL_DARK = "#161818";
+const PANEL_LIGHT = "#F9F7EF";
+
+/**
+ * The green accent as the primary colour instead of OBR's purple, so MUI's
+ * buttons and controls use it too. The same in both modes.
+ */
+function getAccentPalette(_mode: "light" | "dark") {
+  return { main: ACCENT, contrastText: ACCENT_TEXT };
+}
+
+function getPanelBackground(mode: "light" | "dark") {
+  const color = mode === "light" ? PANEL_LIGHT : PANEL_DARK;
+  return { default: color, paper: color };
+}
+
 /**
  * Create a MUI theme based off of the current OBR theme
  * If no theme is provided create the base dark theme
@@ -13,22 +32,19 @@ function getTheme(theme?: Theme) {
       ? {
           mode: theme.mode === "LIGHT" ? "light" : "dark",
           text: theme.text,
-          primary: theme.primary,
+          primary: getAccentPalette(theme.mode === "LIGHT" ? "light" : "dark"),
           secondary: theme.secondary,
-          background: theme?.background,
+          background: getPanelBackground(theme.mode === "LIGHT" ? "light" : "dark"),
+          // Icons in light mode in the dark panel colour instead of MUI's grey
+          ...(theme.mode === "LIGHT" ? { action: { active: PANEL_DARK } } : {}),
         }
       : {
           mode: "dark",
-          primary: {
-            main: "#181919",
-          },
+          primary: getAccentPalette("dark"),
           secondary: {
-            main: "#FFE500",
+            main: ACCENT,
           },
-          background: {
-            paper: "#171919",
-            default: "#171919",
-          },
+          background: getPanelBackground("dark"),
         },
     shape: {
       borderRadius: 16,

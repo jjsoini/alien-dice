@@ -1,3 +1,5 @@
+import { Theme } from "@mui/material/styles";
+import { ACCENT, getBadgeColors } from "../helpers/accent";
 import { Fragment, useMemo } from "react";
 import Badge from "@mui/material/Badge";
 import IconButton from "@mui/material/IconButton";
@@ -145,8 +147,7 @@ export function DicePicker({
                   badgeContent={count}
                   sx={{
                     ".MuiBadge-badge": {
-                      bgcolor: BADGE_COLOR,
-                      color: BADGE_TEXT_COLOR,
+                      ...getBadgeColors(die.style),
                       pointerEvents: "none",
                     },
                   }}
@@ -199,7 +200,9 @@ function PanelButton({
         overlap="circular"
         sx={{
           display: "flex",
-          ".MuiBadge-badge": { bgcolor: BADGE_COLOR, color: BADGE_TEXT_COLOR },
+          ".MuiBadge-badge": {
+            ...getBadgeColors(die.style),
+          },
         }}
       >
         <ButtonBase
@@ -211,9 +214,12 @@ function PanelButton({
             aspectRatio: "1",
             p: 0,
             borderRadius: "50%",
-            // Only picked dice get a background
-            bgcolor: count > 0 ? "rgba(255, 229, 0, 0.18)" : "transparent",
-            transition: "background-color 150ms",
+            // Picked dice get a thin accent ring (inset, so nothing moves)
+            boxShadow: (theme: Theme) =>
+              count > 0
+                ? `inset 0 0 0 1px ${ACCENT}`
+                : "none",
+            transition: "box-shadow 150ms",
             // Picked dice at their limit stay easy to see, as the pool's
             // dice can't be seen behind the panel
             img: {
@@ -244,7 +250,3 @@ function getRollCounts(roll: DiceRoll, diceById: Record<string, Die>) {
   }
   return counts;
 }
-
-/** Stress die yellow, as on the dice */
-const BADGE_COLOR = "#FFE500";
-const BADGE_TEXT_COLOR = "#181919";
