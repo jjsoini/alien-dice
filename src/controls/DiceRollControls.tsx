@@ -14,6 +14,8 @@ import CloseIcon from "@mui/icons-material/CloseRounded";
 import RollIcon from "@mui/icons-material/ArrowForwardRounded";
 
 import { RerollDiceIcon } from "../icons/RerollDiceIcon";
+import { DeleteDieIcon } from "../icons/DeleteDieIcon";
+import { DeleteStressIcon } from "../icons/DeleteStressIcon";
 import { PushButton, SHOW_REROLL } from "./PushButton";
 
 import { GradientOverlay } from "./GradientOverlay";
@@ -88,6 +90,9 @@ function DicePickedControls() {
   const diceById = useDiceControlsStore((state) => state.diceById);
   const counts = useDiceControlsStore((state) => state.diceCounts);
   const hidden = useDiceControlsStore((state) => state.diceHidden);
+  const decrementDieCount = useDiceControlsStore(
+    (state) => state.decrementDieCount
+  );
 
   /** Cards are drawn rather than rolled */
   const hasCards = Object.entries(counts).some(
@@ -155,7 +160,6 @@ function DicePickedControls() {
           width: "100%",
           height: "100%",
           cursor: hasDice ? "pointer" : "",
-          backgroundColor: "rgba(0, 0, 0, 0.25)",
           ":focus": {
             outline: 0,
           },
@@ -236,9 +240,38 @@ function DicePickedControls() {
           </IconButton>
         </Tooltip>
       </Stack>
+      {/* Remove a base or stress die from the pool, bottom left. Siblings of
+          the roll button, so clicking them doesn't roll. */}
+      <Stack
+        direction="row"
+        gap={1}
+        sx={{ position: "absolute", bottom: inset, left: inset }}
+      >
+        {REMOVABLE_DICE.map(({ style, title, Icon }) => {
+          const id = Object.keys(counts).find(
+            (id) => diceById[id]?.type === "D6" && diceById[id]?.style === style
+          );
+          if (!id || !counts[id]) {
+            return null;
+          }
+          return (
+            <Tooltip key={style} title={title} disableInteractive>
+              <IconButton onClick={() => decrementDieCount(id)}>
+                <Icon />
+              </IconButton>
+            </Tooltip>
+          );
+        })}
+      </Stack>
     </>
   );
 }
+
+/** The dice with a remove button in the tray (not the initiative card) */
+const REMOVABLE_DICE = [
+  { style: "BASE", title: "Remove base die", Icon: DeleteDieIcon },
+  { style: "STRESS", title: "Remove stress die", Icon: DeleteStressIcon },
+] as const;
 
 function FinishedRollControls() {
   const inset = useTrayInset();

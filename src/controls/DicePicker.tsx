@@ -58,6 +58,9 @@ export function DicePicker({
   const handleDiceCountIncrease = useDiceControlsStore(
     (state) => state.incrementDieCount
   );
+  const decrementDieCount = useDiceControlsStore(
+    (state) => state.decrementDieCount
+  );
   const roll = useDiceRollStore((state) => state.roll);
   const addDie = useDiceRollStore((state) => state.addDie);
   const addDieToActiveRoll = useDiceHistoryStore(
@@ -166,6 +169,13 @@ export function DicePicker({
             disabled={disabled}
             reason={reason}
             onClick={() => handleClick(id)}
+            // The count badge takes a die (or card) back out of the pool,
+            // not out of a roll in the tray
+            onRemove={
+              !roll && count > 0
+                ? () => decrementDieCount(id)
+                : undefined
+            }
           />
         ) : (
           <Box component="div" key={id}>
@@ -213,26 +223,49 @@ function PanelButton({
   disabled,
   reason,
   onClick,
+  onRemove,
 }: {
   die: Die;
   count: number;
   disabled: boolean;
   reason: string | null;
   onClick: () => void;
+  /** Tapping the count badge removes a die from the pool */
+  onRemove?: () => void;
 }) {
   // The image fills the whole round button, which the grid sizes
   return (
     <Tooltip title={reason || ""} placement="top" disableInteractive>
       <Badge
         badgeContent={count}
+        slotProps={{
+          badge: {
+            onClick: onRemove,
+            role: onRemove ? "button" : undefined,
+            "aria-label": onRemove
+              ? die.type === "CARD"
+                ? "Remove a card"
+                : die.style === "STRESS"
+                ? "Remove a stress die"
+                : "Remove a base die"
+              : undefined,
+          } as React.HTMLAttributes<HTMLSpanElement>,
+        }}
         sx={{
           display: "flex",
           // The count inside the square's top right corner
           ".MuiBadge-badge": {
             ...getBadgeColors(die.style),
-            top: 12,
-            right: 12,
+            top: 10,
+            right: 10,
             transform: "none",
+            // Bigger than a normal badge, as it's also a remove button
+            height: 28,
+            minWidth: 28,
+            borderRadius: "14px",
+            px: 0.75,
+            fontSize: "0.875rem",
+            cursor: onRemove ? "pointer" : "default",
             // The yellow stress badge on the picked stress die's yellow
             // square (light mode) gets a black outline
             boxShadow: (theme: Theme) =>
