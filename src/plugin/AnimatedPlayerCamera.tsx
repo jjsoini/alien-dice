@@ -1,9 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 import { PerspectiveCamera } from "@react-three/drei";
-import { DiceTransform } from "../types/DiceTransform";
+import { useFrame, useThree } from "@react-three/fiber";
 
-import { useSpring, animated, config } from "@react-spring/three";
-import { useThree } from "@react-three/fiber";
+import { DiceTransform } from "../types/DiceTransform";
 
 export function AnimatedPlayerCamera({
   rollTransforms,
@@ -30,24 +30,44 @@ export function AnimatedPlayerCamera({
     }
   }, [rollTransforms]);
 
-  const { position } = useSpring({
-    position: cameraPosition,
-    onChange: () => invalidate(),
-    config: config.slow,
+  // Eased towards the target each frame. The canvas only draws on demand,
+  // so each frame asks for the next one until the camera is there.
+  const group = useRef<THREE.Group>(null);
+  const target = useMemo(
+    () => new THREE.Vector3(...cameraPosition),
+    [cameraPosition]
+  );
+  useEffect(() => {
+    invalidate();
+  }, [target, invalidate]);
+  useFrame((_, delta) => {
+    const position = group.current?.position;
+    if (!position) {
+      return;
+    }
+    // A long gap since the last drawn frame shouldn't jump the camera
+    const step = Math.min(delta, MAX_STEP);
+    position.lerp(target, 1 - Math.exp(-EASE_SPEED * step));
+    if (position.distanceTo(target) > SETTLED) {
+      invalidate();
+    } else {
+      position.copy(target);
+    }
   });
 
   return (
-    <>
-      <animated.group position={position}>
-        <PerspectiveCamera
-          makeDefault
-          fov={28}
-          rotation={[-Math.PI / 2, 0, 0]}
-        />
-      </animated.group>
-    </>
+    <group ref={group} position={[0, 3, 0]}>
+      <PerspectiveCamera makeDefault fov={28} rotation={[-Math.PI / 2, 0, 0]} />
+    </group>
   );
 }
+
+/** How quickly the camera eases to its target */
+const EASE_SPEED = 3;
+/** Longest time step of the ease, in seconds */
+const MAX_STEP = 1 / 30;
+/** Close enough to stop easing */
+const SETTLED = 0.0005;
 
 type BoundingBox = {
   min: { x: number; y: number };
