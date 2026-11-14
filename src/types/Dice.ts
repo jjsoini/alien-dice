@@ -11,18 +11,6 @@ import { Die, isDie } from "./Die";
  *    {id: "234", style: "BASE", type: "D6"},
  *  ],
  * }
- *
- * @example <caption>A D100 rolled with a D10 for the single digit</caption>
- * {
- *  dice: [
- *    {
- *      dice: [
- *        {id: "123", style: "STRESS", type: "D100"},
- *        {id: "234", style: "STRESS", type: "D10"}
- *      ],
- *    },
- *  ],
- * }
  */
 export interface Dice {
   dice: (Die | Dice)[];

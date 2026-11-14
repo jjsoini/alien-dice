@@ -327,8 +327,7 @@ function PanelButton({
 
 /**
  * How many of each button's die are in the roll, by button id. A die counts
- * for the button of the same type and style (a d100's paired d10 has the
- * d100's style, so it doesn't count as a d10).
+ * for the button of the same type and style.
  */
 function getRollCounts(roll: DiceRoll, diceById: Record<string, Die>) {
   const counts: Record<string, number> = {};

@@ -147,17 +147,7 @@ export function getDiceToRoll(
       continue;
     }
     for (let i = 0; i < count; i++) {
-      if (type === "D100") {
-        // Push a d100 and d10 when rolling a d100
-        dice.push({
-          dice: [
-            { id: generateDiceId(), style, type: "D100" },
-            { id: generateDiceId(), style, type: "D10" },
-          ],
-        });
-      } else {
-        dice.push({ id: generateDiceId(), style, type });
-      }
+      dice.push({ id: generateDiceId(), style, type });
     }
   }
   return dice;

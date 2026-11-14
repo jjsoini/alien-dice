@@ -33,7 +33,7 @@ interface DiceRollState {
   reroll: (ids?: string[], manualThrows?: Record<string, DiceThrow>) => void;
   /** Move a finished die on the tray without changing its result */
   moveDie: (id: string, x: number, z: number) => void;
-  /** Roll one more die into the current roll (a d100 adds its d10 too) */
+  /** Roll one more die into the current roll */
   addDie: (die: Pick<Die, "style" | "type">) => void;
   /**
    * Push the roll: add a stress die and reroll the given dice (the ones that
@@ -102,21 +102,11 @@ export const useDiceRollStore = create<DiceRollState>()(
         if (!state.roll) {
           return;
         }
-        const newDice: Die[] =
-          type === "D100"
-            ? [
-                { id: generateDiceId(), style, type: "D100" },
-                { id: generateDiceId(), style, type: "D10" },
-              ]
-            : [{ id: generateDiceId(), style, type }];
-        state.roll.dice.push(
-          newDice.length === 1 ? newDice[0] : { dice: newDice }
-        );
-        for (const die of newDice) {
-          state.rollValues[die.id] = null;
-          state.rollTransforms[die.id] = null;
-          state.rollThrows[die.id] = getRandomDiceThrow();
-        }
+        const die: Die = { id: generateDiceId(), style, type };
+        state.roll.dice.push(die);
+        state.rollValues[die.id] = null;
+        state.rollTransforms[die.id] = null;
+        state.rollThrows[die.id] = getRandomDiceThrow();
       });
     },
     push: (ids) => {
